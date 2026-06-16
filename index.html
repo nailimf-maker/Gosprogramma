@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расселение аварийного жилья · Аналитический дашборд</title>
+<meta name="description" content="Публичный аналитический дашборд программы расселения аварийного жилищного фонда.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="vendor/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#EBEEF4; --surface:#FFFFFF; --surface-2:#F6F8FC;
+    --ink:#16202E; --ink-2:#5A6B82; --ink-3:#8A99AE;
+    --hair:#E3E8F0; --hair-strong:#D3DAE6;
+    --teal:#0E7F73; --teal-2:#16998A; --teal-soft:#CDE8E3;
+    --amber:#E08A1E; --slate:#7C8BA0; --rust:#B5651D;
+    --brick:#C5483B; --grey:#B9C2D0;
+    --shadow:0 1px 2px rgba(22,32,46,.04), 0 8px 28px rgba(22,32,46,.06);
+    --shadow-hover:0 2px 6px rgba(22,32,46,.06), 0 16px 44px rgba(22,32,46,.10);
+    --r:18px; --r-sm:12px;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; font-feature-settings:"tnum" 1,"cv11" 1;
+  }
+  .wrap{max-width:1320px; margin:0 auto; padding:0 24px 72px}
+
+  /* ---------- Header ---------- */
+  .topbar{position:sticky; top:0; z-index:40; background:rgba(235,238,244,.78);
+    backdrop-filter:saturate(180%) blur(18px); -webkit-backdrop-filter:saturate(180%) blur(18px);
+    border-bottom:1px solid var(--hair);}
+  .topbar-inner{max-width:1320px; margin:0 auto; padding:14px 24px; display:flex;
+    align-items:center; gap:18px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:center; gap:12px; min-width:0}
+  .mark{width:34px; height:34px; border-radius:9px; flex:none; position:relative;
+    background:linear-gradient(150deg,var(--teal),var(--teal-2)); box-shadow:0 4px 12px rgba(14,127,115,.32);}
+  .mark::before,.mark::after{content:""; position:absolute; background:#fff; border-radius:1.5px}
+  .mark::before{left:9px; right:9px; bottom:9px; height:8px; opacity:.95}
+  .mark::after{left:14px; top:8px; width:6px; height:6px; transform:rotate(45deg); box-shadow:0 0 0 3px var(--teal)}
+  .brand h1{font-size:15px; font-weight:700; margin:0; letter-spacing:-.01em; white-space:nowrap}
+  .brand p{font-size:11.5px; margin:1px 0 0; color:var(--ink-2); font-family:var(--mono);
+    text-transform:uppercase; letter-spacing:.06em}
+  .topbar-spacer{flex:1}
+  .filters{display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap}
+  .filterbox{display:flex; flex-direction:column; gap:5px}
+  .filterbox label{font-size:10.5px; font-family:var(--mono); color:var(--ink-3);
+    text-transform:uppercase; letter-spacing:.08em}
+  .yr{display:flex; align-items:center; gap:6px}
+  .yr-dash{color:var(--ink-3); font-weight:600}
+  select{font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--ink);
+    background:var(--surface); border:1px solid var(--hair-strong); border-radius:10px;
+    padding:8px 30px 8px 12px; cursor:pointer; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%235A6B82' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; transition:border-color .15s, box-shadow .15s;}
+  select#mr{max-width:220px}
+  select#reason{max-width:185px}
+  select.yrsel{padding:8px 26px 8px 11px; background-position:right 8px center}
+  select:hover{border-color:var(--teal)}
+  select:focus-visible{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft)}
+
+  /* ---------- Hero ---------- */
+  .hero{margin-top:30px; background:var(--surface); border-radius:var(--r);
+    box-shadow:var(--shadow); padding:30px 32px 28px; border:1px solid var(--hair);}
+  .hero-top{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); font-weight:600; margin:0 0 10px}
+  .hero h2{margin:0; font-size:clamp(26px,3.4vw,40px); font-weight:800; letter-spacing:-.025em; line-height:1.05}
+  .hero h2 .pct{color:var(--teal)}
+  .hero-sub{margin:10px 0 0; color:var(--ink-2); font-size:15px; max-width:46ch}
+  .scope-wrap{display:flex; flex-direction:column; align-items:flex-end; gap:8px}
+  .scope-tag{display:inline-flex; align-items:center; gap:7px; background:var(--surface-2);
+    border:1px solid var(--hair); border-radius:999px; padding:7px 14px 7px 12px; font-size:13px;
+    font-weight:600; color:var(--ink); white-space:nowrap}
+  .scope-tag .dot{width:8px; height:8px; border-radius:50%; background:var(--teal); flex:none}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; max-width:340px}
+  .chip{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600;
+    font-family:var(--mono); background:#fff; border:1px solid var(--hair-strong);
+    color:var(--ink-2); border-radius:8px; padding:4px 8px}
+  .chip b{color:var(--ink); font-weight:600}
+  .chip .x{cursor:pointer; color:var(--ink-3); font-weight:700; line-height:1; padding:0 1px}
+  .chip .x:hover{color:var(--brick)}
+  .reset-btn{border:none; background:none; color:var(--teal); font-family:var(--sans);
+    font-weight:600; font-size:12.5px; cursor:pointer; padding:4px 6px; border-radius:6px}
+  .reset-btn:hover{background:var(--teal-soft)}
+  .reset-btn[hidden]{display:none}
+
+  /* signature ribbon */
+  .ribbon{margin-top:26px}
+  .ribbon-bar{display:flex; height:46px; border-radius:11px; overflow:hidden;
+    background:var(--surface-2); box-shadow:inset 0 0 0 1px var(--hair);}
+  .seg{height:100%; min-width:0; position:relative; cursor:default; width:0;
+    transition:width .9s cubic-bezier(.22,.61,.36,1), filter .15s; display:flex; align-items:center;}
+  .seg:hover{filter:brightness(1.06)}
+  .seg .seg-lab{font-family:var(--mono); font-size:11px; font-weight:600; color:#fff;
+    padding-left:11px; white-space:nowrap; opacity:.96; text-shadow:0 1px 2px rgba(0,0,0,.18);}
+  .ribbon-legend{display:flex; flex-wrap:wrap; gap:6px 22px; margin-top:16px}
+  .lg{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-2)}
+  .lg .sw{width:11px; height:11px; border-radius:3px; flex:none}
+  .lg b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .lg .lg-pct{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+
+  /* ---------- KPI grid ---------- */
+  .kpis{display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-top:14px}
+  .kpi{background:var(--surface); border:1px solid var(--hair); border-radius:var(--r-sm);
+    padding:18px 18px 16px; box-shadow:var(--shadow); transition:transform .18s, box-shadow .18s}
+  .kpi:hover{transform:translateY(-2px); box-shadow:var(--shadow-hover)}
+  .kpi .klab{font-size:11.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-3); margin:0 0 9px; display:flex; align-items:center; gap:7px}
+  .kpi .klab .ic{width:7px; height:7px; border-radius:2px; flex:none}
+  .kpi .kval{font-size:27px; font-weight:800; letter-spacing:-.02em; line-height:1; font-variant-numeric:tabular-nums}
+  .kpi .kunit{font-size:13px; color:var(--ink-3); font-weight:600; margin-left:4px}
+  .kpi .ksub{font-size:12px; color:var(--ink-2); margin-top:7px; font-variant-numeric:tabular-nums}
+
+  /* ---------- Section + cards ---------- */
+  .grid{display:grid; gap:14px; margin-top:14px}
+  .g-3{grid-template-columns:1.5fr 1fr 1fr}
+  .g-2{grid-template-columns:1fr 1fr}
+  .g-lead{grid-template-columns:1.4fr 1fr}
+  .card{background:var(--surface); border:1px solid var(--hair); border-radius:var(--r);
+    box-shadow:var(--shadow); padding:20px 22px 18px; min-width:0}
+  .card-h{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:6px}
+  .card-h h3{margin:0; font-size:15px; font-weight:700; letter-spacing:-.01em}
+  .card-h .meta{font-size:11px; font-family:var(--mono); color:var(--ink-3); text-transform:uppercase; letter-spacing:.05em}
+  .chart{width:100%; height:280px}
+  .chart.tall{height:330px}
+  .chart.lead{height:430px}
+
+  /* leaderboard */
+  .lb{max-height:430px; overflow:auto; margin:6px -8px 0; padding:0 8px}
+  .lb::-webkit-scrollbar{width:8px}
+  .lb::-webkit-scrollbar-thumb{background:var(--hair-strong); border-radius:4px}
+  .lb-row{display:grid; grid-template-columns:22px 1fr 116px 56px; align-items:center; gap:12px;
+    padding:9px 10px; border-radius:10px; cursor:pointer; transition:background .14s}
+  .lb-row:hover{background:var(--surface-2)}
+  .lb-row.active{background:var(--teal-soft)}
+  .lb-rank{font-family:var(--mono); font-size:12px; color:var(--ink-3); text-align:right}
+  .lb-name{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .lb-name small{display:block; font-weight:500; color:var(--ink-3); font-size:11px;
+    font-family:var(--mono); font-variant-numeric:tabular-nums}
+  .lb-track{height:8px; background:var(--surface-2); border-radius:5px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--hair)}
+  .lb-fill{height:100%; border-radius:5px; background:linear-gradient(90deg,var(--teal),var(--teal-2));
+    width:0; transition:width .7s cubic-bezier(.22,.61,.36,1)}
+  .lb-pct{font-family:var(--mono); font-size:13px; font-weight:600; text-align:right; font-variant-numeric:tabular-nums}
+
+  /* table */
+  .tbl-wrap{overflow-x:auto; margin-top:8px}
+  table{width:100%; border-collapse:collapse; font-size:13.5px}
+  th{text-align:left; font-size:11px; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.05em; color:var(--ink-3); font-weight:600; padding:8px 12px; border-bottom:1px solid var(--hair-strong)}
+  th.num,td.num{text-align:right; font-variant-numeric:tabular-nums}
+  td{padding:11px 12px; border-bottom:1px solid var(--hair)}
+  tbody tr:hover{background:var(--surface-2)}
+  td.addr{font-weight:600; max-width:420px}
+  td.addr small{display:block; color:var(--ink-3); font-weight:500; font-size:11.5px}
+  .pillpct{display:inline-block; min-width:46px; text-align:center; font-family:var(--mono);
+    font-size:12px; font-weight:600; padding:3px 8px; border-radius:7px}
+
+  .pagefoot{margin-top:30px; text-align:center; color:var(--ink-3); font-size:12px; font-family:var(--mono)}
+  .pagefoot a{color:var(--ink-2)}
+
+  /* states */
+  #loader{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
+    justify-content:center; flex-direction:column; gap:18px; z-index:100; transition:opacity .4s}
+  #loader.hide{opacity:0; pointer-events:none}
+  .spin{width:34px; height:34px; border-radius:50%; border:3px solid var(--hair-strong);
+    border-top-color:var(--teal); animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #loader p{font-family:var(--mono); font-size:12px; color:var(--ink-2); margin:0}
+  .errbox{max-width:520px; margin:60px auto; background:var(--surface); border:1px solid var(--hair);
+    border-radius:var(--r); padding:28px; box-shadow:var(--shadow)}
+  .errbox h3{margin:0 0 10px}
+  .errbox code{font-family:var(--mono); background:var(--surface-2); padding:2px 6px; border-radius:5px; font-size:13px}
+
+  @media(max-width:1080px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .g-3,.g-lead{grid-template-columns:1fr}
+  }
+  @media(max-width:680px){
+    .wrap{padding:0 14px 56px}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .g-2{grid-template-columns:1fr}
+    .hero{padding:22px 18px}
+    .lb-row{grid-template-columns:20px 1fr 70px 48px}
+    .lb-track{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important}
+  }
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="spin"></div><p>Загрузка данных реестра…</p></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div>
+        <h1>Расселение аварийного жилья</h1>
+        <p id="brand-sub">Аналитический дашборд</p>
+      </div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="filters">
+      <div class="filterbox">
+        <label for="mr">Район</label>
+        <select id="mr" aria-label="Фильтр по муниципальному району"></select>
+      </div>
+      <div class="filterbox">
+        <label for="reason">Причина аварийности</label>
+        <select id="reason" aria-label="Фильтр по причине признания дома аварийным"></select>
+      </div>
+      <div class="filterbox yearbox">
+        <label for="y0">Признан аварийным</label>
+        <div class="yr">
+          <select id="y0" aria-label="Год признания: с"></select>
+          <span class="yr-dash">–</span>
+          <select id="y1" aria-label="Год признания: по"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app" hidden>
+
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="hero-h">
+    <div class="hero-top">
+      <div>
+        <p class="eyebrow" id="eyebrow">Прогресс программы</p>
+        <h2 id="hero-h">Расселено <span class="pct" id="hero-pct">—</span> жилого фонда</h2>
+        <p class="hero-sub" id="hero-sub"></p>
+      </div>
+      <div class="scope-wrap">
+        <div class="scope-tag">
+          <span class="dot"></span><span id="scope-text">Все районы</span>
+        </div>
+        <div class="chips" id="chips"></div>
+        <button class="reset-btn" id="reset" hidden>Сбросить всё</button>
+      </div>
+    </div>
+
+    <div class="ribbon">
+      <div class="ribbon-bar" id="ribbon" role="img" aria-label="Распределение помещений по состоянию расселения"></div>
+      <div class="ribbon-legend" id="ribbon-legend"></div>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="kpis" id="kpis" aria-label="Ключевые показатели"></section>
+
+  <!-- Leaderboard + status/premise -->
+  <section class="grid g-lead">
+    <div class="card">
+      <div class="card-h"><h3>Прогресс расселения по районам</h3><span class="meta">клик — фильтр · % расселено</span></div>
+      <div class="lb" id="leaderboard"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Состояние расселения</h3><span class="meta">помещения</span></div>
+      <div class="chart tall" id="c-status"></div>
+    </div>
+  </section>
+
+  <!-- type / ownership / rooms -->
+  <section class="grid g-3">
+    <div class="card">
+      <div class="card-h"><h3>Тип собственности</h3><span class="meta">помещения</span></div>
+      <div class="chart" id="c-own"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Тип помещения</h3><span class="meta">доля</span></div>
+      <div class="chart" id="c-prem"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Комнатность</h3><span class="meta">помещения</span></div>
+      <div class="chart" id="c-rooms"></div>
+    </div>
+  </section>
+
+  <!-- timelines -->
+  <section class="grid g-2">
+    <div class="card">
+      <div class="card-h"><h3>Признание домов аварийными</h3><span class="meta">помещения · по годам</span></div>
+      <div class="chart" id="c-emerg"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h3>Завершённое расселение</h3><span class="meta">накопительно · по месяцам</span></div>
+      <div class="chart" id="c-cum"></div>
+    </div>
+  </section>
+
+  <!-- top houses -->
+  <section class="card" style="margin-top:14px">
+    <div class="card-h"><h3>Дома с наибольшим объёмом нерасселённых помещений</h3><span class="meta">топ‑40 · по региону</span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Адрес дома</th><th class="num">Всего</th><th class="num">К расселению</th>
+          <th class="num">Расселено</th><th class="num">Площадь, м²</th><th class="num">Готовность</th>
+        </tr></thead>
+        <tbody id="houses"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="pagefoot" id="foot"></p>
+</main>
+
+<script>
+const STATUS_COLORS = {
+  "Расселено":"#0E7F73","Подлежит расселению":"#E08A1E","Пустующие":"#7C8BA0",
+  "Розыск собственника":"#B5651D","В суде":"#C5483B","Не заполнено":"#B9C2D0","Не указано":"#B9C2D0"
+};
+const SEQ = ["#0E7F73","#2E9CC9","#4B6FB0","#7E6BB0","#B0608F","#C2724E","#9AA7B8"];
+const nf = new Intl.NumberFormat('ru-RU');
+const fmt = n => nf.format(Math.round(n));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let DATA=null, D=null, C=null;            // D=dict, C=cols
+let STATE={mr:-1, reason:-1, y0:null, y1:null};
+let CODE={res:0, pend:1, vac:2};
+let BOOT_RANKING=[];
+let charts={};
+
+const baseGrid={left:6,right:14,top:14,bottom:6,containLabel:true};
+const axisStyle={
+  axisLine:{lineStyle:{color:'#E3E8F0'}}, axisTick:{show:false},
+  axisLabel:{color:'#5A6B82', fontFamily:'IBM Plex Mono', fontSize:11},
+  splitLine:{lineStyle:{color:'#EEF1F6'}}
+};
+function tooltipBase(){return{
+  backgroundColor:'#16202E', borderColor:'#16202E', textStyle:{color:'#fff',fontFamily:'Hanken Grotesk',fontSize:13},
+  padding:[8,12], extraCssText:'border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22)'
+};}
+
+function init(){
+  ['c-status','c-own','c-prem','c-rooms','c-emerg','c-cum'].forEach(id=>{
+    charts[id]=echarts.init(document.getElementById(id),null,{renderer:'canvas'});
+  });
+  window.addEventListener('resize',()=>Object.values(charts).forEach(c=>c.resize()));
+}
+
+/* ---------- COMPUTE (один проход по фактам) ---------- */
+function computeAll(){
+  const N=C.mr.length;
+  const nStatus=D.status.length,nPrem=D.premise.length,nOwn=D.ownership.length,
+        nLife=D.lifecycle.length,nReason=D.reason.length,nRooms=D.rooms.length,nMr=D.mr.length;
+  const RES=CODE.res,PEND=CODE.pend,VAC=CODE.vac;
+  const stC=Array(nStatus).fill(0),prC=Array(nPrem).fill(0),owC=Array(nOwn).fill(0),
+        rsC=Array(nReason).fill(0),rmC=Array(nRooms).fill(0);
+  let total=0,resettled=0,pending=0,vacant=0,area10=0,residents=0;
+  const eyMap=new Map(),ryMap=new Map(),houseSet=new Set(),houseAgg=new Map();
+  const rkTot=Array(nMr).fill(0),rkRes=Array(nMr).fill(0);
+  const rkHouses=Array.from({length:nMr},()=>new Set());
+  const mrSel=STATE.mr,rsSel=STATE.reason,y0=STATE.y0,y1=STATE.y1;
+
+  for(let i=0;i<N;i++){
+    const ey=C.ey[i];
+    if(ey<y0||ey>y1) continue;
+    if(rsSel>=0 && C.rs[i]!==rsSel) continue;
+    const mr=C.mr[i], st=C.st[i];
+    rkTot[mr]++; if(st===RES) rkRes[mr]++; rkHouses[mr].add(C.hs[i]);
+    if(mrSel>=0 && mr!==mrSel) continue;
+    total++;
+    stC[st]++; prC[C.pr[i]]++; owC[C.ow[i]]++; rsC[C.rs[i]]++;
+    const rm=C.rm[i]; if(rm>=0) rmC[rm]++;
+    area10+=C.ar10[i]; residents+=C.re[i];
+    if(st===RES) resettled++; else if(st===PEND) pending++; else if(st===VAC) vacant++;
+    houseSet.add(C.hs[i]);
+    if(ey>=1997) eyMap.set(ey,(eyMap.get(ey)||0)+1);
+    if(st===RES){const ry=C.ry[i]; if(ry>=201500) ryMap.set(ry,(ryMap.get(ry)||0)+1);}
+    const hc=C.hs[i]; let h=houseAgg.get(hc); if(!h){h={t:0,p:0,r:0,a:0};houseAgg.set(hc,h);}
+    h.t++; if(st===PEND)h.p++; if(st===RES)h.r++; h.a+=C.ar10[i];
+  }
+
+  const ordered=(c,l)=>l.map((x,i)=>[x,c[i]]).filter(p=>p[1]>0);
+  const sorted =(c,l)=>ordered(c,l).sort((a,b)=>b[1]-a[1]);
+  const slice={
+    kpis:{total,resettled,pending,vacant,houses:houseSet.size,
+          area:Math.round(area10/10),residents,
+          resettled_pct: total?+(100*resettled/total).toFixed(1):0},
+    status:ordered(stC,D.status),
+    premise:sorted(prC,D.premise),
+    ownership:sorted(owC,D.ownership),
+    rooms:ordered(rmC,D.rooms),
+    emergency_year:[...eyMap.entries()].sort((a,b)=>a[0]-b[0]),
+    resettle_cum:(()=>{const e=[...ryMap.entries()].sort((a,b)=>a[0]-b[0]); let c=0;
+      return e.map(([ym,v])=>{c+=v; return [Math.floor(ym/100)+'-'+String(ym%100).padStart(2,'0'),c];});})(),
+  };
+  const ranking=[];
+  for(let m=0;m<nMr;m++){ if(!rkTot[m]) continue;
+    ranking.push({code:m,name:D.mr[m],total:rkTot[m],resettled:rkRes[m],
+      houses:rkHouses[m].size,pct:+(100*rkRes[m]/rkTot[m]).toFixed(1)});}
+  ranking.sort((a,b)=>b.total-a.total);
+  const houses=[...houseAgg.entries()].map(([hc,h])=>({
+      addr:DATA.houses[hc], mr:D.mr[D.house_mr[hc]], total:h.t, pending:h.p,
+      resettled:h.r, area:Math.round(h.a/10), pct:+(100*h.r/h.t).toFixed(1)}))
+    .sort((a,b)=>b.pending-a.pending).slice(0,40);
+  return {slice,ranking,houses};
+}
+
+/* ---------- HERO RIBBON ---------- */
+function renderRibbon(s){
+  const total=s.kpis.total||1, bar=document.getElementById('ribbon'), leg=document.getElementById('ribbon-legend');
+  bar.innerHTML=''; leg.innerHTML='';
+  s.status.forEach(([name,val])=>{
+    const pct=val/total*100;
+    const seg=document.createElement('div');
+    seg.className='seg'; seg.style.background=STATUS_COLORS[name]||'#B9C2D0';
+    seg.title=`${name}: ${fmt(val)} (${pct.toFixed(1)}%)`;
+    if(pct>9) seg.innerHTML=`<span class="seg-lab">${pct.toFixed(0)}%</span>`;
+    bar.appendChild(seg); requestAnimationFrame(()=>{seg.style.width=pct+'%';});
+    const lg=document.createElement('div'); lg.className='lg';
+    lg.innerHTML=`<span class="sw" style="background:${STATUS_COLORS[name]||'#B9C2D0'}"></span>
+      ${name} · <b>${fmt(val)}</b> <span class="lg-pct">${pct.toFixed(1)}%</span>`;
+    leg.appendChild(lg);
+  });
+}
+
+/* ---------- KPIs ---------- */
+function countUp(el,target){
+  if(reduce){el.textContent=fmt(target);return;}
+  const dur=700,t0=performance.now();
+  (function step(t){const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,3);
+    el.textContent=fmt(target*e); if(p<1)requestAnimationFrame(step); else el.textContent=fmt(target);})(performance.now());
+}
+function renderKpis(s){
+  const k=s.kpis;
+  const cards=[
+    {lab:'Всего помещений',val:k.total,unit:'',sub:`${fmt(k.houses)} домов`,c:'var(--ink-2)'},
+    {lab:'Расселено',val:k.resettled,unit:'',sub:`${k.resettled_pct}% от объёма`,c:'var(--teal)'},
+    {lab:'Подлежит расселению',val:k.pending,unit:'',sub:k.total?`${(k.pending/k.total*100).toFixed(1)}% от объёма`:'—',c:'var(--amber)'},
+    {lab:'Пустующие',val:k.vacant,unit:'',sub:'без жильцов',c:'var(--slate)'},
+    {lab:'Жителей затронуто',val:k.residents,unit:'чел.',sub:'постоянно проживающих',c:'var(--rust)'},
+    {lab:'Общая площадь',val:k.area,unit:'м²',sub:k.total?`≈ ${fmt(k.area/k.total)} м²/помещение`:'—',c:'var(--ink-2)'},
+  ];
+  const box=document.getElementById('kpis'); box.innerHTML='';
+  cards.forEach(c=>{
+    const d=document.createElement('div'); d.className='kpi';
+    d.innerHTML=`<p class="klab"><span class="ic" style="background:${c.c}"></span>${c.lab}</p>
+      <div class="kval"><span class="num">0</span><span class="kunit">${c.unit}</span></div>
+      <p class="ksub">${c.sub}</p>`;
+    box.appendChild(d); countUp(d.querySelector('.num'),c.val);
+  });
+}
+
+/* ---------- CHARTS ---------- */
+function donut(id,pairs,colorFn,opts={}){
+  charts[id].setOption({
+    tooltip:{...tooltipBase(),trigger:'item',formatter:p=>`${p.name}<br><b>${fmt(p.value)}</b> · ${p.percent}%`},
+    legend:{show:opts.legend!==false,bottom:0,icon:'roundRect',itemWidth:10,itemHeight:10,itemGap:14,
+      textStyle:{color:'#5A6B82',fontFamily:'Hanken Grotesk',fontSize:12}},
+    series:[{type:'pie',radius:['58%','82%'],center:['50%',opts.legend===false?'50%':'44%'],
+      avoidLabelOverlap:true,padAngle:2,itemStyle:{borderRadius:5,borderColor:'#fff',borderWidth:2},
+      label:{show:true,position:'center',formatter:()=>opts.center||'',fontFamily:'Hanken Grotesk',fontSize:13,fontWeight:700,color:'#16202E'},
+      emphasis:{label:{show:true,fontSize:14},scale:true,scaleSize:4},
+      data:pairs.map(([n,v])=>({name:n,value:v,itemStyle:{color:colorFn(n)}}))}],
+    animationDuration:reduce?0:700,animationEasing:'cubicOut'
+  },true);
+}
+function hbar(id,pairs){
+  const data=[...pairs].reverse();
+  charts[id].setOption({
+    tooltip:{...tooltipBase(),trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>`${p[0].name}<br><b>${fmt(p[0].value)}</b> помещений`},
+    grid:{...baseGrid,left:6,right:42},
+    xAxis:{type:'value',...axisStyle,axisLabel:{...axisStyle.axisLabel,formatter:v=>v>=1000?(v/1000)+'k':v}},
+    yAxis:{type:'category',data:data.map(d=>d[0]),...axisStyle,
+      axisLabel:{color:'#16202E',fontFamily:'Hanken Grotesk',fontSize:12,fontWeight:500,formatter:v=>v.length>22?v.slice(0,21)+'…':v}},
+    series:[{type:'bar',data:data.map((d,i)=>({value:d[1],itemStyle:{color:SEQ[(data.length-1-i)%SEQ.length]}})),
+      barWidth:'58%',itemStyle:{borderRadius:[0,5,5,0]},
+      label:{show:true,position:'right',formatter:p=>fmt(p.value),color:'#5A6B82',fontFamily:'IBM Plex Mono',fontSize:11}}],
+    animationDuration:reduce?0:700
+  },true);
+}
+function vbar(id,pairs,color){
+  charts[id].setOption({
+    tooltip:{...tooltipBase(),trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>`${p[0].name} комн.<br><b>${fmt(p[0].value)}</b> помещений`},
+    grid:{...baseGrid,bottom:4},
+    xAxis:{type:'category',data:pairs.map(d=>d[0]),...axisStyle,axisLabel:{color:'#16202E',fontFamily:'Hanken Grotesk',fontSize:12,fontWeight:600}},
+    yAxis:{type:'value',...axisStyle,axisLabel:{...axisStyle.axisLabel,formatter:v=>v>=1000?(v/1000)+'k':v}},
+    series:[{type:'bar',data:pairs.map(d=>d[1]),barWidth:'54%',itemStyle:{color:color,borderRadius:[5,5,0,0]}}],
+    animationDuration:reduce?0:700
+  },true);
+}
+function area(id,pairs,color,labelMode){
+  charts[id].setOption({
+    tooltip:{...tooltipBase(),trigger:'axis',formatter:p=>`${p[0].axisValue}<br><b>${fmt(p[0].value)}</b>`},
+    grid:{...baseGrid,bottom:4},
+    xAxis:{type:'category',data:pairs.map(d=>d[0]),boundaryGap:false,...axisStyle,
+      axisLabel:{...axisStyle.axisLabel,interval:labelMode==='year'?'auto':'auto',
+        formatter:v=>labelMode==='year'?("’"+String(v).slice(2)):String(v).slice(0,7)}},
+    yAxis:{type:'value',...axisStyle,axisLabel:{...axisStyle.axisLabel,formatter:v=>v>=1000?(v/1000)+'k':v}},
+    series:[{type:'line',data:pairs.map(d=>d[1]),smooth:.35,showSymbol:false,lineStyle:{color:color,width:2.4},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:color+'44'},{offset:1,color:color+'04'}])}}],
+    animationDuration:reduce?0:800
+  },true);
+}
+
+/* ---------- LEADERBOARD ---------- */
+function renderLeaderboard(ranking){
+  const box=document.getElementById('leaderboard'); box.innerHTML='';
+  if(!ranking.length){box.innerHTML='<p style="color:var(--ink-3);padding:16px;font-size:13px">Нет данных под текущие фильтры.</p>';return;}
+  ranking.forEach((r,i)=>{
+    const row=document.createElement('div');
+    row.className='lb-row'+(STATE.mr===r.code?' active':'');
+    row.tabIndex=0; row.setAttribute('role','button');
+    row.innerHTML=`<span class="lb-rank">${i+1}</span>
+      <span class="lb-name">${r.name}<small>${fmt(r.total)} помещ. · ${fmt(r.houses)} домов</small></span>
+      <span class="lb-track"><span class="lb-fill" style="width:0"></span></span>
+      <span class="lb-pct">${r.pct}%</span>`;
+    const sel=()=>{STATE.mr=(STATE.mr===r.code)?-1:r.code; document.getElementById('mr').value=STATE.mr; render();};
+    row.onclick=sel;
+    row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();sel();}};
+    box.appendChild(row);
+    requestAnimationFrame(()=>{row.querySelector('.lb-fill').style.width=Math.max(r.pct,1.5)+'%';});
+  });
+}
+
+/* ---------- TABLE ---------- */
+function renderHouses(houses){
+  const tb=document.getElementById('houses'); tb.innerHTML='';
+  if(!houses.length){tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:26px">Нет домов под текущие фильтры.</td></tr>`;return;}
+  houses.forEach(h=>{
+    const col=h.pct>=80?'var(--teal)':h.pct>=40?'var(--amber)':'var(--brick)';
+    const bg =h.pct>=80?'var(--teal-soft)':h.pct>=40?'#FBEED7':'#F7DEDB';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="addr">${h.addr}<small>${h.mr}</small></td>
+      <td class="num">${fmt(h.total)}</td>
+      <td class="num" style="color:var(--amber);font-weight:600">${fmt(h.pending)}</td>
+      <td class="num">${fmt(h.resettled)}</td>
+      <td class="num">${fmt(h.area)}</td>
+      <td class="num"><span class="pillpct" style="color:${col};background:${bg}">${h.pct}%</span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ---------- CHIPS / SCOPE ---------- */
+function renderChips(){
+  const chips=document.getElementById('chips'); chips.innerHTML='';
+  const add=(label,val,clear)=>{
+    const c=document.createElement('span'); c.className='chip';
+    c.innerHTML=`${label} <b>${val}</b> <span class="x" role="button" tabindex="0" aria-label="Сбросить фильтр">×</span>`;
+    const x=c.querySelector('.x'); x.onclick=clear; x.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();clear();}};
+    chips.appendChild(c);
+  };
+  if(STATE.reason>=0) add('Причина:',D.reason[STATE.reason],()=>{STATE.reason=-1;document.getElementById('reason').value=-1;render();});
+  const fullRange=(STATE.y0===DATA.meta.year_min && STATE.y1===DATA.meta.year_max);
+  if(!fullRange) add('Признан:',STATE.y0===STATE.y1?STATE.y0:`${STATE.y0}–${STATE.y1}`,()=>{
+    STATE.y0=DATA.meta.year_min; STATE.y1=DATA.meta.year_max;
+    document.getElementById('y0').value=STATE.y0; document.getElementById('y1').value=STATE.y1; render();});
+  const any = STATE.mr>=0 || STATE.reason>=0 || !fullRange;
+  document.getElementById('reset').hidden=!any;
+}
+
+/* ---------- MASTER RENDER ---------- */
+function render(){
+  const {slice:s,ranking,houses}=computeAll();
+  document.getElementById('scope-text').textContent =
+    STATE.mr<0 ? `Все районы · ${D.mr.length}` : D.mr[STATE.mr];
+  document.getElementById('eyebrow').textContent = STATE.mr<0?'Прогресс программы':'Район · прогресс';
+  document.getElementById('hero-pct').textContent = s.kpis.resettled_pct+'%';
+  document.getElementById('hero-sub').textContent = s.kpis.total
+    ? `${fmt(s.kpis.resettled)} из ${fmt(s.kpis.total)} помещений переселены. Остаётся ${fmt(s.kpis.pending)} к расселению в ${fmt(s.kpis.houses)} домах.`
+    : 'Под выбранные фильтры записей не найдено.';
+  renderChips();
+  renderRibbon(s);
+  renderKpis(s);
+  renderLeaderboard(ranking);
+  donut('c-status', s.status, n=>STATUS_COLORS[n]||'#B9C2D0', {center:fmt(s.kpis.total)});
+  hbar('c-own', s.ownership);
+  const pc={}; s.premise.forEach((p,i)=>pc[p[0]]=SEQ[i%SEQ.length]);
+  donut('c-prem', s.premise, n=>pc[n]);
+  vbar('c-rooms', s.rooms, css('--teal'));
+  area('c-emerg', s.emergency_year, css('--brick'), 'year');
+  area('c-cum', s.resettle_cum, css('--teal'), 'month');
+  renderHouses(houses);
+  Object.values(charts).forEach(c=>c.resize());
+}
+
+/* ---------- CONTROLS ---------- */
+function fillControls(){
+  const mr=document.getElementById('mr');
+  mr.innerHTML='<option value="-1">Все районы</option>'+
+    BOOT_RANKING.map(r=>`<option value="${r.code}">${r.name}</option>`).join('');
+  mr.onchange=()=>{STATE.mr=+mr.value; render();};
+
+  const rs=document.getElementById('reason');
+  rs.innerHTML='<option value="-1">Все причины</option>'+
+    D.reason.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+  rs.onchange=()=>{STATE.reason=+rs.value; render();};
+
+  const y0=document.getElementById('y0'), y1=document.getElementById('y1');
+  const ymin=DATA.meta.year_min, ymax=DATA.meta.year_max;
+  let opts=''; for(let y=ymin;y<=ymax;y++) opts+=`<option value="${y}">${y}</option>`;
+  y0.innerHTML=opts; y1.innerHTML=opts; y0.classList.add('yrsel'); y1.classList.add('yrsel');
+  y0.value=ymin; y1.value=ymax;
+  y0.onchange=()=>{STATE.y0=+y0.value; if(STATE.y0>STATE.y1){STATE.y1=STATE.y0; y1.value=STATE.y1;} render();};
+  y1.onchange=()=>{STATE.y1=+y1.value; if(STATE.y1<STATE.y0){STATE.y0=STATE.y1; y0.value=STATE.y0;} render();};
+
+  document.getElementById('reset').onclick=()=>{
+    STATE={mr:-1,reason:-1,y0:ymin,y1:ymax};
+    mr.value=-1; rs.value=-1; y0.value=ymin; y1.value=ymax; render();
+  };
+}
+
+/* ---------- BOOT ---------- */
+function boot(){
+  D=DATA.dict; C=DATA.cols;
+  CODE.res=D.status.indexOf('Расселено');
+  CODE.pend=D.status.indexOf('Подлежит расселению');
+  CODE.vac=D.status.indexOf('Пустующие');
+  STATE={mr:-1,reason:-1,y0:DATA.meta.year_min,y1:DATA.meta.year_max};
+  BOOT_RANKING=computeAll().ranking;     // стабильный порядок для выпадающего списка районов
+
+  document.getElementById('brand-sub').textContent=`${DATA.meta.region} · ${DATA.meta.period}`;
+  document.getElementById('foot').innerHTML=
+    `Источник: реестр «Помещения» · ${fmt(DATA.meta.rows)} записей · обновлено ${DATA.meta.data_updated} · сборка ${DATA.meta.generated}`;
+  document.getElementById('app').hidden=false;
+  init(); fillControls(); render();
+  setTimeout(()=>document.getElementById('loader').classList.add('hide'),250);
+}
+
+fetch('data.json')
+  .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(d=>{DATA=d; boot();})
+  .catch(err=>{
+    document.getElementById('loader').classList.add('hide');
+    document.body.insertAdjacentHTML('beforeend',
+      `<div class="errbox"><h3>Не удалось загрузить данные</h3>
+       <p>Файл <code>data.json</code> не найден или страница открыта напрямую из файловой системы.</p>
+       <p>Дашборд работает на GitHub&nbsp;Pages. Для локального просмотра запустите простой сервер:</p>
+       <p><code>python3 -m http.server 8080</code> → откройте <code>http://localhost:8080</code></p>
+       <p style="color:var(--ink-3);font-size:12px">Техническая ошибка: ${err.message}</p></div>`);
+  });
+</script>
+</body>
+</html>
