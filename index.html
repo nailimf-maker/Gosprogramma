@@ -152,7 +152,28 @@
   .chip.on{background:var(--navy); color:#fff; border-color:var(--navy)}
   .reset{margin-left:auto; background:none; border:1px solid var(--line); color:var(--ink-2); border-radius:9px; padding:11px 16px; font:600 12.5px/1 "Geologica"; cursor:pointer; transition:all .2s}
   .reset:hover{border-color:var(--gold); color:var(--gold)}
-  @media(max-width:600px){ .reset{margin-left:0; width:100%} .fgroup{flex:1 1 100%} select.sel{width:100%} }
+  .reset.alt{margin-left:auto; background:var(--navy); border-color:var(--navy); color:#fff}
+  .reset.alt + .reset{margin-left:0}
+  .reset.alt:hover{background:var(--blue); border-color:var(--blue); color:#fff}
+  /* multi-select */
+  .ms{position:relative; min-width:210px}
+  .ms-btn{width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:10px 13px; font:500 13.5px/1 "Geologica"; cursor:pointer; transition:border-color .2s}
+  .ms-btn svg{width:15px; height:15px; stroke:var(--muted); flex:none}
+  .ms-btn:hover{border-color:var(--blue)}
+  .ms.open .ms-btn{border-color:var(--blue)}
+  .ms-panel{position:absolute; z-index:60; top:calc(100% + 6px); left:0; width:300px; max-width:84vw; background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--sh); padding:10px; }
+  .ms-search{width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:400 13px/1 "Geologica"; margin-bottom:8px; outline:none}
+  .ms-search:focus{border-color:var(--blue)}
+  .ms-list{max-height:280px; overflow:auto; display:flex; flex-direction:column; gap:1px}
+  .ms-opt{display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--ink-2)}
+  .ms-opt:hover{background:var(--paper-veil)}
+  .ms-opt .box{width:16px; height:16px; border:1.5px solid var(--line); border-radius:4px; flex:none; display:flex; align-items:center; justify-content:center}
+  .ms-opt.on .box{background:var(--blue); border-color:var(--blue)}
+  .ms-opt.on .box::after{content:""; width:5px; height:9px; border:2px solid #fff; border-top:0; border-left:0; transform:rotate(45deg) translateY(-1px)}
+  .ms-opt.on{color:var(--navy); font-weight:500}
+  .ms-foot{display:flex; align-items:center; justify-content:space-between; margin-top:9px; padding-top:9px; border-top:1px solid var(--line-2); font-size:12px; color:var(--muted)}
+  .ms-foot button{background:none; border:0; color:var(--blue); font:600 12px/1 "Geologica"; cursor:pointer}
+  @media(max-width:600px){ .reset{margin-left:0; width:100%} .reset.alt{margin-left:0; width:100%} .fgroup{flex:1 1 100%} select.sel{width:100%} .ms{width:100%} }
 
   /* ---------- charts ---------- */
   .grid{display:grid; gap:22px}
@@ -317,10 +338,20 @@
   <!-- FILTERS -->
   <div class="sec-head"><span class="ix">01</span><h2>Параметры выборки</h2><span class="rule"></span></div>
   <section class="filters" aria-label="Фильтры">
-    <div class="fgroup"><label>Муниципальный район</label><select class="sel" id="f-mr"><option value="">Все районы</option></select></div>
+    <div class="fgroup"><label>Муниципальные округа</label>
+      <div class="ms" id="f-mr">
+        <button type="button" class="ms-btn" id="f-mr-btn"><span id="f-mr-label">Все округа</span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="ms-panel" id="f-mr-panel" hidden>
+          <input class="ms-search" id="f-mr-search" placeholder="Поиск округа…" autocomplete="off">
+          <div class="ms-list" id="f-mr-list"></div>
+          <div class="ms-foot"><span id="f-mr-cnt">Выбрано: 0</span><button type="button" id="f-mr-clear">Очистить</button></div>
+        </div>
+      </div>
+    </div>
     <div class="fgroup"><label>Причина аварийности</label><select class="sel" id="f-reason"><option value="">Все причины</option></select></div>
     <div class="fgroup"><label>Год признания аварийным</label><div class="yr-range"><select class="sel" id="f-year-from"></select><span>—</span><select class="sel" id="f-year-to"></select></div></div>
-    <div class="fgroup" style="flex:1; min-width:260px"><label>Состояние расселения</label><div class="chips" id="f-status"></div></div>
+    <div class="fgroup" style="flex:1; min-width:240px"><label>Состояние расселения</label><div class="chips" id="f-status"></div></div>
+    <button class="reset alt" id="sms-btn" title="Скопировать сводку для СМС">СМС</button>
     <button class="reset" id="reset">Сбросить</button>
   </section>
 
@@ -479,22 +510,24 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const fmtA=n=>nfA.format(n);
   const nfP=new Intl.NumberFormat('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1});
   const fmtP=v=>nfP.format(v)+'%';
+  const nf1=new Intl.NumberFormat('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:1});
+  const fmtAreaShort=a=>{ if(a>=1e6) return nf1.format(a/1e6)+' млн кв.м'; if(a>=1e3) return nf1.format(a/1e3)+' тыс кв.м'; return fmtA(a)+' кв.м'; };
   const ADM=/\s*(городск(ой|ое)\s+(округ|поселение)|муниципальн(ый|ое)\s+(округ|район)|сельское\s+поселение)\s*/gi;
   const shortName=s=>{if(s==null)return s;let r=String(s).replace(ADM,' ').replace(/\s+/g,' ').trim().replace(/^[-–—,]+|[-–—,]+$/g,'').trim();return r||String(s);};
 
-  const state={mr:'',reason:'',status:new Set(),yearFrom:0,yearTo:9999,tblScope:'mr',struct:'own',search:'',sort:{col:'count',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
+  const state={mrSet:new Set(),reason:'',status:new Set(),yearFrom:0,yearTo:9999,tblScope:'mr',struct:'own',search:'',sort:{col:'count',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
   let YMIN=0,YMAX=9999,lastCmp=null;
 
   // ----- aggregation (single pass) -----
   function pass(){
-    const fmr=state.mr===''?-1:+state.mr, fre=state.reason===''?-1:+state.reason, hs=state.status.size>0;
+    const mset=state.mrSet, hasMr=mset.size>0, fre=state.reason===''?-1:+state.reason, hs=state.status.size>0;
     const yA=state.yearFrom>YMIN||state.yearTo<YMAX;
     const A={n:0,area:0,people:0,houses:new Set(),
       status:Array(SI.length).fill(0),own:Array(DIMS.own.length).fill(0),ptype:Array(DIMS.ptype.length).fill(0),
       stage:Array(DIMS.stage.length).fill(0),areaDone:0,yearHouses:{},mr:{},mo:{},mrSet:new Set()};
     const c=COLS;
     for(let i=0;i<N;i++){
-      if(fmr>=0&&c.mr[i]!==fmr)continue;
+      if(hasMr&&!mset.has(c.mr[i]))continue;
       if(fre>=0&&c.reason[i]!==fre)continue;
       if(yA){const y=c.year[i]; if(y<state.yearFrom||y>state.yearTo)continue;}
       const st=c.status[i];
@@ -635,10 +668,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   // ----- завершающая стадия: дома, где осталось расселить <= порога (статус не фильтруем) -----
   function completion(){
-    const thr=state.cmp.thr, fmr=state.mr===''?-1:+state.mr, fre=state.reason===''?-1:+state.reason;
+    const thr=state.cmp.thr, mset=state.mrSet, hasMr=mset.size>0, fre=state.reason===''?-1:+state.reason;
     const yA=state.yearFrom>YMIN||state.yearTo<YMAX, c=COLS, hm=new Map();
     for(let i=0;i<N;i++){
-      if(fmr>=0&&c.mr[i]!==fmr)continue;
+      if(hasMr&&!mset.has(c.mr[i]))continue;
       if(fre>=0&&c.reason[i]!==fre)continue;
       if(yA){const y=c.year[i]; if(y<state.yearFrom||y>state.yearTo)continue;}
       const h=c.house[i]; let g=hm.get(h); if(!g){g={total:0,done:0,mr:c.mr[i]};hm.set(h,g);}
@@ -678,19 +711,71 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     document.getElementById('cmp-prev').disabled=state.cmp.page===0; document.getElementById('cmp-next').disabled=state.cmp.page>=pages-1; window._cmpPages=pages;
   }
 
+  // ----- СМС-сводка по выбранным округам -----
+  function loc(name){
+    let s=String(name).trim();
+    if(/(ий|ый|ой)$/i.test(s)) return s.replace(/(ий|ый|ой)$/i,'ом');
+    if(/(ы|и)$/i.test(s)) return s.replace(/(ы|и)$/i,'ах');
+    if(/[ая]$/i.test(s)) return s.slice(0,-1)+'е';
+    if(/о$/i.test(s)) return s;
+    if(/[бвгджзклмнпрстфхцчшщ]$/i.test(s)) return s+'е';
+    return s;
+  }
+  function aggFor(mrIdx){
+    const c=COLS; let area=0,people=0,prem=0; const houses=new Set();
+    for(let i=0;i<N;i++){ if(mrIdx!=null && c.mr[i]!==mrIdx) continue; area+=c.area[i]; people+=c.people[i]; prem++; houses.add(c.house[i]); }
+    return {area,houses:houses.size,prem,people};
+  }
+  function smsBlock(a){
+    return `Всего в Госпрограмме - ${fmtAreaShort(a.area)}, ${fmt(a.houses)} домов, ${fmt(a.prem)} ж/п, ${fmt(a.people)} человек.\n`
+         + `Бюджет - _ кв.м, _ домов, _ ж/п, _ человек.\n`
+         + `Внебюджет - _ кв.м, _ домов, _ ж/п, _ человек.`;
+  }
+  function buildSMS(){
+    const sel=[...state.mrSet];
+    if(sel.length===0) return smsBlock(aggFor(null));
+    sel.sort((a,b)=>shortName(DIMS.mr[a]).localeCompare(shortName(DIMS.mr[b]),'ru'));
+    if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsBlock(aggFor(sel[0]));
+    return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsBlock(aggFor(mi))).join('\n\n');
+  }
+  async function copySMS(){
+    const text=buildSMS();
+    try{ await navigator.clipboard.writeText(text); toast('Сводка скопирована в буфер обмена','ok',4000); }
+    catch(e){ try{const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); ta.remove(); toast('Сводка скопирована','ok',4000);}catch(_){ toast('Не удалось скопировать','err',5000);} }
+  }
+
   let lastA=null;
   function renderAll(){const A=pass();lastA=A;renderKPI(A);renderDonut(A);renderMRBars(A);renderStruct(A);renderYear(A);renderTable(A);renderCompletion();}
 
   function buildControls(){
     document.getElementById('period-line').textContent=D.meta.period;
     document.getElementById('f-period').textContent=D.meta.period;
-    const mrSel=document.getElementById('f-mr'); mrSel.length=1;
     const reSel=document.getElementById('f-reason'); reSel.length=1;
     const yf=document.getElementById('f-year-from'), yt=document.getElementById('f-year-to'); yf.length=0; yt.length=0;
     document.getElementById('f-status').innerHTML='';
-    const mc={};for(let i=0;i<N;i++)mc[COLS.mr[i]]=(mc[COLS.mr[i]]||0)+1;
-    DIMS.mr.map((n,i)=>({n,i})).sort((a,b)=>shortName(a.n).localeCompare(shortName(b.n),'ru')).forEach(o=>{const op=document.createElement('option');op.value=o.i;op.textContent=shortName(o.n);mrSel.appendChild(op);});
-    mrSel.onchange=()=>{state.mr=mrSel.value;state.page=0;renderAll();};
+    // --- multi-select округов ---
+    const msList=document.getElementById('f-mr-list');
+    const mrOrder=DIMS.mr.map((n,i)=>({n:shortName(n),full:n,i})).sort((a,b)=>a.n.localeCompare(b.n,'ru'));
+    function msLabel(){
+      const s=state.mrSet;
+      const el=document.getElementById('f-mr-label');
+      if(s.size===0)el.textContent='Все округа';
+      else if(s.size===1)el.textContent=shortName(DIMS.mr[[...s][0]]);
+      else el.textContent='Выбрано округов: '+s.size;
+      document.getElementById('f-mr-cnt').textContent='Выбрано: '+s.size;
+    }
+    function msRender(){
+      const q=(document.getElementById('f-mr-search').value||'').toLowerCase();
+      msList.innerHTML=mrOrder.filter(o=>!q||o.n.toLowerCase().includes(q)).map(o=>`<div class="ms-opt ${state.mrSet.has(o.i)?'on':''}" data-i="${o.i}"><span class="box"></span><span>${o.n}</span></div>`).join('')||'<div style="padding:10px;color:var(--muted);font-size:13px">Ничего не найдено</div>';
+      msList.querySelectorAll('.ms-opt').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; state.mrSet.has(i)?state.mrSet.delete(i):state.mrSet.add(i); el.classList.toggle('on'); msLabel(); state.page=0; renderAll();});
+    }
+    msRender(); msLabel();
+    document.getElementById('f-mr-search').oninput=msRender;
+    const msBox=document.getElementById('f-mr'), msBtn=document.getElementById('f-mr-btn'), msPanel=document.getElementById('f-mr-panel');
+    msBtn.onclick=(e)=>{e.stopPropagation(); const open=msPanel.hidden; document.querySelectorAll('.ms-panel').forEach(p=>p.hidden=true); document.querySelectorAll('.ms').forEach(m=>m.classList.remove('open')); if(open){msPanel.hidden=false; msBox.classList.add('open'); document.getElementById('f-mr-search').focus();}};
+    msPanel.onclick=e=>e.stopPropagation();
+    document.getElementById('f-mr-clear').onclick=()=>{state.mrSet.clear(); msRender(); msLabel(); state.page=0; renderAll();};
+    if(!window._msDocClose){window._msDocClose=true; document.addEventListener('click',()=>{document.querySelectorAll('.ms-panel').forEach(p=>p.hidden=true); document.querySelectorAll('.ms').forEach(m=>m.classList.remove('open'));});}
     DIMS.reason.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;reSel.appendChild(o);});
     reSel.onchange=()=>{state.reason=reSel.value;state.page=0;renderAll();};
     const ys=[...new Set(COLS.year.filter(y=>y>0))].sort((a,b)=>a-b);
@@ -701,7 +786,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     yt.onchange=()=>{state.yearTo=+yt.value; if(state.yearTo<state.yearFrom){state.yearFrom=state.yearTo; yf.value=state.yearFrom;} state.page=0; renderAll();};
     const wrap=document.getElementById('f-status');
     SI.forEach((n,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{state.status.has(i)?state.status.delete(i):state.status.add(i);b.classList.toggle('on');state.page=0;renderAll();};wrap.appendChild(b);});
-    document.getElementById('reset').onclick=()=>{state.mr='';state.reason='';state.status.clear();state.search='';state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;mrSel.value='';reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
+    document.getElementById('reset').onclick=()=>{state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;msRender();msLabel();reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
+    document.getElementById('sms-btn').onclick=copySMS;
     document.querySelectorAll('#struct-seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#struct-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.struct=b.dataset.k;renderStruct(lastA);});
     document.querySelectorAll('#tbl-seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tbl-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.tblScope=b.dataset.k;state.page=0;renderTable(lastA);});
     let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;state.page=0;renderTable(lastA);},150);};
@@ -717,7 +803,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function applyData(ds){
     D=ds; COLS=ds.cols; DIMS=ds.dims; N=ds.meta.rows;
     SI=DIMS.status; DONE=idx(SI,'Расселено'); TOR=idx(SI,'Подлежит расселению'); VAC=idx(SI,'Пустующие');
-    state.mr='';state.reason='';state.status.clear();state.search='';state.page=0;state.cmp.search='';state.cmp.page=0;
+    state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.page=0;state.cmp.search='';state.cmp.page=0;
     const ts=document.getElementById('tbl-search'); if(ts)ts.value='';
     const cs=document.getElementById('cmp-search'); if(cs)cs.value='';
     const ul=document.getElementById('updated-line'); if(ul)ul.innerHTML=ds.meta.updated?('Обновлено: <b>'+ds.meta.updated+'</b>'):'';
