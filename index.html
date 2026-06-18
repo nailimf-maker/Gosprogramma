@@ -150,11 +150,11 @@
   .chip{padding:9px 14px; border-radius:999px; font:500 12.5px/1 "Geologica"; cursor:pointer; user-select:none; border:1px solid var(--line); background:var(--card); color:var(--ink-2); transition:all .2s var(--ease); white-space:nowrap}
   .chip:hover{border-color:var(--gold-soft)}
   .chip.on{background:var(--navy); color:#fff; border-color:var(--navy)}
-  .reset{margin-left:auto; background:none; border:1px solid var(--line); color:var(--ink-2); border-radius:9px; padding:11px 16px; font:600 12.5px/1 "Geologica"; cursor:pointer; transition:all .2s}
+  .reset{background:none; border:1px solid var(--line); color:var(--ink-2); border-radius:9px; padding:11px 16px; font:600 12.5px/1 "Geologica"; cursor:pointer; transition:all .2s}
   .reset:hover{border-color:var(--gold); color:var(--gold)}
-  .reset.alt{margin-left:auto; background:var(--navy); border-color:var(--navy); color:#fff}
-  .reset.alt + .reset{margin-left:0}
+  .reset.alt{background:var(--navy); border-color:var(--navy); color:#fff}
   .reset.alt:hover{background:var(--blue); border-color:var(--blue); color:#fff}
+  .filter-actions{margin-left:auto; display:flex; gap:8px; align-items:flex-end}
   /* multi-select */
   .ms{position:relative; min-width:210px}
   .ms-btn{width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:10px 13px; font:500 13.5px/1 "Geologica"; cursor:pointer; transition:border-color .2s}
@@ -173,7 +173,7 @@
   .ms-opt.on{color:var(--navy); font-weight:500}
   .ms-foot{display:flex; align-items:center; justify-content:space-between; margin-top:9px; padding-top:9px; border-top:1px solid var(--line-2); font-size:12px; color:var(--muted)}
   .ms-foot button{background:none; border:0; color:var(--blue); font:600 12px/1 "Geologica"; cursor:pointer}
-  @media(max-width:600px){ .reset{margin-left:0; width:100%} .reset.alt{margin-left:0; width:100%} .fgroup{flex:1 1 100%} select.sel{width:100%} .ms{width:100%} }
+  @media(max-width:600px){ .reset{width:100%} .filter-actions{margin-left:0; width:100%; flex-direction:column} .fgroup{flex:1 1 100%} select.sel{width:100%} .ms{width:100%} }
 
   /* ---------- charts ---------- */
   .grid{display:grid; gap:22px}
@@ -351,8 +351,10 @@
     <div class="fgroup"><label>Причина аварийности</label><select class="sel" id="f-reason"><option value="">Все причины</option></select></div>
     <div class="fgroup"><label>Год признания аварийным</label><div class="yr-range"><select class="sel" id="f-year-from"></select><span>—</span><select class="sel" id="f-year-to"></select></div></div>
     <div class="fgroup" style="flex:1; min-width:240px"><label>Состояние расселения</label><div class="chips" id="f-status"></div></div>
-    <button class="reset alt" id="sms-btn" title="Скопировать сводку для СМС">СМС</button>
-    <button class="reset" id="reset">Сбросить</button>
+    <div class="filter-actions">
+      <button class="reset alt" id="sms-btn" title="Скопировать сводку для СМС">СМС</button>
+      <button class="reset" id="reset">Сбросить</button>
+    </div>
   </section>
 
   <!-- STATUS + REGIONS -->
