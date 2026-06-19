@@ -820,10 +820,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   function smsLine(label,a){ return `${label} - ${fmtAreaShort(a.area)}, ${fmt(a.houses)} домов, ${fmt(a.prem)} ж/п, ${fmt(a.people)} человек.`; }
   function smsBlock(g){ return smsLine('Всего в Госпрограмме',g.all)+'\n'+smsLine('Бюджет',g.b)+'\n'+smsLine('Внебюджет',g.e); }
+  function smsBlockBE(g){ return smsLine('Бюджет',g.b)+'\n'+smsLine('Внебюджет',g.e); }
   function smsMuni(mi){
     let s=smsBlock(aggFund(mi));
     const ros=aggFundMO(mi);
-    if(ros.length){ s+='\n\nРайоны:'; ros.forEach(r=>{ s+=`\n\n${r.name}:\n`+smsBlock(r); }); }
+    if(ros.length){ s+='\n\nРайоны:'; ros.forEach(r=>{ s+=`\n\n${r.name}:\n`+smsBlockBE(r); }); }
     return s;
   }
   function buildSMS(){
