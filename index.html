@@ -74,6 +74,15 @@
   .ft{appearance:none; background:none; border:0; border-radius:9px; padding:10px 20px; font:600 13.5px/1 "Geologica"; color:var(--muted); cursor:pointer; transition:all .2s}
   .ft:hover{color:var(--ink)}
   .ft.active{background:var(--navy); color:#fff; box-shadow:0 2px 8px rgba(32,31,107,.22)}
+  .crumb{display:flex; align-items:center; gap:8px; font:600 13.5px/1 "Geologica"}
+  .cr-back{background:none; border:0; color:var(--blue); font:600 13.5px/1 "Geologica"; cursor:pointer; padding:0}
+  .cr-back:hover{text-decoration:underline}
+  .cr-sep{color:var(--muted-2)} .cr-cur{color:var(--navy)}
+  tr.drill{cursor:pointer}
+  tr.drill:hover{background:var(--paper-veil)}
+  .drill-ar{width:14px; height:14px; stroke:var(--muted); vertical-align:middle; margin-left:6px; transition:transform .15s,stroke .15s}
+  tr.drill:hover .drill-ar{transform:translateX(2px); stroke:var(--blue)}
+  .drill-name{font-weight:600}
   @media(max-width:620px){ .updated{font-size:11px} }
   .bld-pipeline{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
   @media(max-width:980px){ .bld-pipeline{grid-template-columns:repeat(3,1fr)} }
@@ -402,11 +411,11 @@
     </section>
   </div>
 
-  <!-- REGISTRY -->
-  <div class="sec-head"><span class="ix">04</span><h2>Региональный реестр</h2><span class="rule"></span><span class="note">площадь и помещения по округам</span></div>
+  <!-- МУНИЦИПАЛИТЕТЫ -->
+  <div class="sec-head"><span class="ix">04</span><h2>Муниципалитеты</h2><span class="rule"></span><span class="note">всего · бюджет · внебюджет · клик раскрывает районы</span></div>
   <section class="card tbl-card">
     <div class="tbl-top">
-      <div class="seg" id="tbl-seg"><button data-k="mr" class="on">По районам</button><button data-k="mo">По муниципалитетам</button></div>
+      <div class="crumb" id="reg-crumb"></div>
       <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input id="tbl-search" placeholder="Поиск по наименованию…" autocomplete="off"></div>
     </div>
     <div class="tbl-scroll"><table><thead><tr id="thead-row"></tr></thead><tbody id="tbody"></tbody></table></div>
@@ -531,7 +540,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const ADM=/\s*(городск(ой|ое)\s+(округ|поселение)|муниципальн(ый|ое)\s+(округ|район)|сельское\s+поселение)\s*/gi;
   const shortName=s=>{if(s==null)return s;let r=String(s).replace(ADM,' ').replace(/\s+/g,' ').trim().replace(/^[-–—,]+|[-–—,]+$/g,'').trim();return r||String(s);};
 
-  const state={fund:'',mrSet:new Set(),reason:'',status:new Set(),yearFrom:0,yearTo:9999,tblScope:'mr',struct:'own',search:'',sort:{col:'area',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
+  const state={fund:'',mrSet:new Set(),reason:'',status:new Set(),yearFrom:0,yearTo:9999,reg:{mr:null},struct:'own',search:'',sort:{col:'area',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
   let YMIN=0,YMAX=9999,lastCmp=null;
 
   // ----- aggregation (single pass) -----
@@ -663,23 +672,49 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     document.getElementById('year-hint').innerHTML=`Пик признания — <b>${peak.y}</b> год (${fmt(peak.v)} домов). Всего аварийных домов в выборке: <b>${fmt(A.houses.size)}</b>.`;
   }
 
-  // ----- table -----
-  const COLDEF=[{k:'name',t:'Наименование'},{k:'area',t:'Площадь, м²'},{k:'houses',t:'Домов'},{k:'count',t:'Жилых помещений'}];
+  // ----- Муниципалитеты (с раскрытием в районы), разрез по источникам -----
+  const COLDEF=[{k:'name',t:'Наименование'},{k:'area',t:'Площадь всего, м²'},{k:'b',t:'Бюджет, м²'},{k:'e',t:'Внебюджет, м²'},{k:'houses',t:'Домов'},{k:'count',t:'Ж/п'}];
   const PER=12;
-  function tableRows(A){
-    const src=state.tblScope==='mr'?A.mr:A.mo, names=state.tblScope==='mr'?DIMS.mr:DIMS.mo;
-    let rows=Object.entries(src).map(([k,g])=>({name:names[k],count:g.n,houses:g.houses.size,area:g.area,pct:g.n?g.done/g.n*100:0}));
+  function regRows(){
+    const c=COLS, drill=state.reg.mr, yA=state.yearFrom>YMIN||state.yearTo<YMAX, mset=state.mrSet, hasMr=mset.size>0;
+    const map=new Map();
+    for(let i=0;i<N;i++){
+      if(c.fund[i]===0)continue;
+      if(yA){const y=c.year[i]; if(y<state.yearFrom||y>state.yearTo)continue;}
+      let key,name;
+      if(drill==null){ if(hasMr&&!mset.has(c.mr[i]))continue; key=c.mr[i]; name=DIMS.mr[key]; }
+      else { if(c.mr[i]!==drill)continue; key=c.mo[i]; name=DIMS.mo[key]; }
+      let g=map.get(key); if(!g){g={key,name,area:0,b:0,e:0,count:0,houses:new Set()};map.set(key,g);}
+      g.area+=c.area[i]; g.count++; g.houses.add(c.house[i]); if(c.fund[i]===1)g.b+=c.area[i]; else g.e+=c.area[i];
+    }
+    let rows=[...map.values()].map(g=>({key:g.key,name:g.name,area:g.area,b:g.b,e:g.e,count:g.count,houses:g.houses.size}));
     const q=state.search.trim().toLowerCase(); if(q)rows=rows.filter(r=>r.name.toLowerCase().includes(q)||shortName(r.name).toLowerCase().includes(q));
     const s=state.sort; rows.sort((a,b)=>{const av=a[s.col],bv=b[s.col];return typeof av==='string'?s.dir*av.localeCompare(bv,'ru'):s.dir*(av-bv);});
     return rows;
   }
-  function renderTable(A){
-    const rows=tableRows(A),pages=Math.max(1,Math.ceil(rows.length/PER)); if(state.page>=pages)state.page=pages-1;
+  function renderReg(){
+    const drill=state.reg.mr, rows=regRows();
+    const pages=Math.max(1,Math.ceil(rows.length/PER)); if(state.page>=pages)state.page=pages-1;
     const slice=rows.slice(state.page*PER,(state.page+1)*PER);
+    // breadcrumb
+    const crumb=document.getElementById('reg-crumb');
+    crumb.innerHTML = drill==null
+      ? `<span class="cr-cur">Все муниципалитеты</span>`
+      : `<button class="cr-back" id="reg-back">‹ Муниципалитеты</button><span class="cr-sep">/</span><span class="cr-cur">${shortName(DIMS.mr[drill])} · районы</span>`;
+    if(drill!=null)document.getElementById('reg-back').onclick=()=>{state.reg.mr=null;state.page=0;state.search='';const ts=document.getElementById('tbl-search');if(ts)ts.value='';renderReg();};
+    // head
     document.getElementById('thead-row').innerHTML=COLDEF.map(c=>{const on=state.sort.col===c.k,ar=state.sort.dir<0?'▼':'▲';return`<th data-col="${c.k}" class="${on?'sort':''}">${c.t}<span class="ar">${on?ar:'▲'}</span></th>`;}).join('');
-    document.querySelectorAll('#thead-row th').forEach(th=>th.onclick=()=>{const c=th.dataset.col;if(state.sort.col===c)state.sort.dir*=-1;else state.sort={col:c,dir:c==='name'?1:-1};state.page=0;renderTable(A);});
-    document.getElementById('tbody').innerHTML=slice.map((r,i)=>`<tr><td title="${r.name}"><span class="rank num">${state.page*PER+i+1}</span>${shortName(r.name)}</td><td class="num">${fmtA(r.area)}</td><td class="num">${fmt(r.houses)}</td><td class="num">${fmt(r.count)}</td></tr>`).join('');
-    document.getElementById('tbl-count').textContent=`${fmt(rows.length)} ${state.tblScope==='mr'?'округов':'муниципалитетов'}`;
+    document.querySelectorAll('#thead-row th').forEach(th=>th.onclick=()=>{const c=th.dataset.col;if(state.sort.col===c)state.sort.dir*=-1;else state.sort={col:c,dir:c==='name'?1:-1};state.page=0;renderReg();});
+    // body
+    document.getElementById('tbody').innerHTML=slice.map((r,i)=>{
+      const clickable=drill==null;
+      const nameCell=clickable
+        ? `<span class="rank num">${state.page*PER+i+1}</span><span class="drill-name">${shortName(r.name)}</span><svg class="drill-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`
+        : `<span class="rank num">${state.page*PER+i+1}</span>${r.name}`;
+      return `<tr class="${clickable?'drill':''}" ${clickable?`data-mr="${r.key}"`:''}><td title="${r.name}">${nameCell}</td><td class="num">${fmtA(r.area)}</td><td class="num">${fmtA(r.b)}</td><td class="num">${fmtA(r.e)}</td><td class="num">${fmt(r.houses)}</td><td class="num">${fmt(r.count)}</td></tr>`;
+    }).join('')||`<tr><td colspan="6" class="empty">Нет данных</td></tr>`;
+    if(drill==null)document.querySelectorAll('#tbody tr.drill').forEach(tr=>tr.onclick=()=>{state.reg.mr=+tr.dataset.mr;state.page=0;state.search='';const ts=document.getElementById('tbl-search');if(ts)ts.value='';renderReg();});
+    document.getElementById('tbl-count').textContent=`${fmt(rows.length)} ${drill==null?'муниципалитетов':'районов'}`;
     document.getElementById('pg-info').textContent=`${state.page+1} / ${pages}`;
     document.getElementById('pg-prev').disabled=state.page===0; document.getElementById('pg-next').disabled=state.page>=pages-1; window._pages=pages;
   }
@@ -763,7 +798,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   let lastA=null;
-  function renderAll(){const A=pass();lastA=A;renderKPI(A);renderDonut(A);renderMRBars(A);renderStruct(A);renderYear(A);renderTable(A);}
+  function renderAll(){const A=pass();lastA=A;renderKPI(A);renderDonut(A);renderMRBars(A);renderStruct(A);renderYear(A);renderReg();}
 
   function buildControls(){
     document.getElementById('period-line').textContent=D.meta.period;
@@ -805,14 +840,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     yt.onchange=()=>{state.yearTo=+yt.value; if(state.yearTo<state.yearFrom){state.yearFrom=state.yearTo; yf.value=state.yearFrom;} state.page=0; renderAll();};
     const wrap=document.getElementById('f-status');
     SI.forEach((n,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{state.status.has(i)?state.status.delete(i):state.status.add(i);b.classList.toggle('on');state.page=0;renderAll();};wrap.appendChild(b);});
-    document.getElementById('reset').onclick=()=>{state.fund='';document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x.dataset.fund===''));state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;msRender();msLabel();reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
+    document.getElementById('reset').onclick=()=>{state.fund='';document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x.dataset.fund===''));state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;msRender();msLabel();reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
     document.getElementById('sms-btn').onclick=copySMS;
     document.querySelectorAll('.ft').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x===b));state.fund=b.dataset.fund;state.page=0;renderAll();});
     document.querySelectorAll('#struct-seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#struct-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.struct=b.dataset.k;renderStruct(lastA);});
-    document.querySelectorAll('#tbl-seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tbl-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.tblScope=b.dataset.k;state.page=0;renderTable(lastA);});
-    let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;state.page=0;renderTable(lastA);},150);};
-    document.getElementById('pg-prev').onclick=()=>{if(state.page>0){state.page--;renderTable(lastA);}};
-    document.getElementById('pg-next').onclick=()=>{if(state.page<window._pages-1){state.page++;renderTable(lastA);}};
+    let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;state.page=0;renderReg();},150);};
+    document.getElementById('pg-prev').onclick=()=>{if(state.page>0){state.page--;renderReg();}};
+    document.getElementById('pg-next').onclick=()=>{if(state.page<window._pages-1){state.page++;renderReg();}};
     document.querySelectorAll('#cmp-thr button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#cmp-thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cmp.thr=+b.dataset.t;state.cmp.page=0;document.getElementById('cmp-note').textContent='осталось расселить ≤ '+Math.round(state.cmp.thr*100)+'%';renderCompletion();});
     let ct;document.getElementById('cmp-search').oninput=e=>{clearTimeout(ct);ct=setTimeout(()=>{state.cmp.search=e.target.value;state.cmp.page=0;renderCmpTable();},150);};
     document.getElementById('cmp-prev').onclick=()=>{if(state.cmp.page>0){state.cmp.page--;renderCmpTable();}};
@@ -823,7 +857,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function applyData(ds){
     D=ds; COLS=ds.cols; DIMS=ds.dims; N=ds.meta.rows;
     SI=DIMS.status; DONE=idx(SI,'Расселено'); TOR=idx(SI,'Подлежит расселению'); VAC=idx(SI,'Пустующие');
-    state.fund='';state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.page=0;state.cmp.search='';state.cmp.page=0;
+    state.fund='';state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.cmp.search='';state.cmp.page=0;
     const ts=document.getElementById('tbl-search'); if(ts)ts.value='';
     const cs=document.getElementById('cmp-search'); if(cs)cs.value='';
     const ul=document.getElementById('updated-line'); if(ul)ul.innerHTML=ds.meta.updated?('Обновлено: <b>'+ds.meta.updated+'</b>'):'';
