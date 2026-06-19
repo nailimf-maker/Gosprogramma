@@ -296,6 +296,7 @@
   .bar .bv{font:600 13.5px/1 "Geologica"; color:var(--ink)}
   .bar .track{grid-column:1/-1; height:8px; border-radius:6px; background:var(--paper-veil); overflow:hidden}
   .bar .fill{height:100%; border-radius:6px; width:0; transition:width .9s var(--ease)}
+  .bar .bmeta{grid-column:1/-1; font-size:11px; color:var(--muted); margin-top:-1px}
 
   .area-host svg{width:100%; height:auto; display:block; overflow:visible}
   .tick{font:500 10.5px/1 "Geologica"; fill:var(--muted-2)}
@@ -767,9 +768,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   // ----- top MR bars -----
   function renderMRBars(A){
-    const rows=Object.entries(A.mr).map(([k,g])=>({name:DIMS.mr[k],v:g.area})).sort((a,b)=>b.v-a.v);
+    const rows=Object.entries(A.mr).map(([k,g])=>({name:DIMS.mr[k],v:g.area,n:g.n,houses:g.houses.size})).sort((a,b)=>b.v-a.v);
     const max=Math.max(...rows.map(r=>r.v),1);
-    document.getElementById('mr-bars').innerHTML=rows.map((r,i)=>`<div class="bar"><span class="bn" title="${r.name}">${shortName(r.name)}</span><span class="bv num">${aNum(r.v)} м²</span><div class="track"><div class="fill" data-w="${(r.v/max*100).toFixed(1)}" style="background:linear-gradient(90deg,${C_NAVY},${C_BLUE});transition-delay:${Math.min(i,12)*40}ms"></div></div></div>`).join('');
+    document.getElementById('mr-bars').innerHTML=rows.map((r,i)=>`<div class="bar"><span class="bn" title="${r.name}">${shortName(r.name)}</span><span class="bv num">${aNum(r.v)} м²</span><div class="track"><div class="fill" data-w="${(r.v/max*100).toFixed(1)}" style="background:linear-gradient(90deg,${C_NAVY},${C_BLUE});transition-delay:${Math.min(i,12)*40}ms"></div></div><div class="bmeta">${fmt(r.n)} ж/п · ${fmt(r.houses)} домов</div></div>`).join('');
     requestAnimationFrame(()=>document.querySelectorAll('#mr-bars .fill').forEach(f=>f.style.width=f.dataset.w+'%'));
   }
 
