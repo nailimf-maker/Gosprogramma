@@ -102,6 +102,8 @@
   .modal-tbl td{padding:10px; border-bottom:1px solid var(--line-2); font-size:13.5px; color:var(--ink-2); text-align:right}
   .modal-tbl td:first-child{text-align:left; font-weight:600; color:var(--ink)}
   .modal-tbl tr:last-child td{border-bottom:0}
+  .scroll-y{max-height:540px; overflow-y:auto}
+  .scroll-y thead th{position:sticky; top:0; z-index:2; background:var(--card)}
   @media(max-width:620px){ .updated{font-size:11px} }
   .bld-pipeline{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
   @media(max-width:980px){ .bld-pipeline{grid-template-columns:repeat(3,1fr)} }
@@ -437,8 +439,8 @@
       <div class="crumb" id="reg-crumb"></div>
       <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input id="tbl-search" placeholder="Поиск по наименованию…" autocomplete="off"></div>
     </div>
-    <div class="tbl-scroll"><table><thead><tr id="thead-row"></tr></thead><tbody id="tbody"></tbody></table></div>
-    <div class="tbl-foot"><span id="tbl-count">—</span><div class="pager"><button id="pg-prev">‹</button><span id="pg-info" class="num" style="align-self:center; min-width:64px; text-align:center">1 / 1</span><button id="pg-next">›</button></div></div>
+    <div class="tbl-scroll scroll-y"><table><thead><tr id="thead-row"></tr></thead><tbody id="tbody"></tbody></table></div>
+    <div class="tbl-foot"><span id="tbl-count">—</span></div>
   </section>
 
   <div id="sec-completion" hidden>
@@ -726,16 +728,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     let rows=regRows(null);
     const q=state.search.trim().toLowerCase(); if(q)rows=rows.filter(r=>r.name.toLowerCase().includes(q)||shortName(r.name).toLowerCase().includes(q));
     const s=state.sort; rows.sort((a,b)=>{const av=a[s.col],bv=b[s.col];return typeof av==='string'?s.dir*av.localeCompare(bv,'ru'):s.dir*(av-bv);});
-    const pages=Math.max(1,Math.ceil(rows.length/PER)); if(state.page>=pages)state.page=pages-1;
-    const slice=rows.slice(state.page*PER,(state.page+1)*PER);
     const crumb=document.getElementById('reg-crumb'); if(crumb)crumb.innerHTML=`<span class="cr-cur">Все муниципалитеты</span>`;
     document.getElementById('thead-row').innerHTML=COLDEF.map(c=>{const on=state.sort.col===c.k,ar=state.sort.dir<0?'▼':'▲';return`<th data-col="${c.k}" class="${on?'sort':''}">${c.t}<span class="ar">${on?ar:'▲'}</span></th>`;}).join('');
-    document.querySelectorAll('#thead-row th').forEach(th=>th.onclick=()=>{const c=th.dataset.col;if(state.sort.col===c)state.sort.dir*=-1;else state.sort={col:c,dir:c==='name'?1:-1};state.page=0;renderReg();});
-    document.getElementById('tbody').innerHTML=slice.map((r,i)=>`<tr class="drill" data-mr="${r.key}"><td title="${r.name}"><span class="rank num">${state.page*PER+i+1}</span><span class="drill-name">${shortName(r.name)}</span><svg class="drill-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td><td class="num">${fmtA(r.area)}</td><td class="num">${fmtA(r.b)}</td><td class="num">${fmtA(r.e)}</td><td class="num">${fmt(r.houses)}</td><td class="num">${fmt(r.count)}</td></tr>`).join('')||`<tr><td colspan="6" class="empty">Нет данных</td></tr>`;
+    document.querySelectorAll('#thead-row th').forEach(th=>th.onclick=()=>{const c=th.dataset.col;if(state.sort.col===c)state.sort.dir*=-1;else state.sort={col:c,dir:c==='name'?1:-1};renderReg();});
+    document.getElementById('tbody').innerHTML=rows.map((r,i)=>`<tr class="drill" data-mr="${r.key}"><td title="${r.name}"><span class="rank num">${i+1}</span><span class="drill-name">${shortName(r.name)}</span><svg class="drill-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td><td class="num">${fmtA(r.area)}</td><td class="num">${fmtA(r.b)}</td><td class="num">${fmtA(r.e)}</td><td class="num">${fmt(r.houses)}</td><td class="num">${fmt(r.count)}</td></tr>`).join('')||`<tr><td colspan="6" class="empty">Нет данных</td></tr>`;
     document.querySelectorAll('#tbody tr.drill').forEach(tr=>tr.onclick=()=>openMuni(+tr.dataset.mr));
     document.getElementById('tbl-count').textContent=`${fmt(rows.length)} муниципалитетов`;
-    document.getElementById('pg-info').textContent=`${state.page+1} / ${pages}`;
-    document.getElementById('pg-prev').disabled=state.page===0; document.getElementById('pg-next').disabled=state.page>=pages-1; window._pages=pages;
   }
   function openMuni(mrIdx){
     let rows=regRows(mrIdx).sort((a,b)=>b.area-a.area);
@@ -812,14 +810,28 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const fin=o=>({area:o.area,houses:o.houses.size,prem:o.prem,people:o.people});
     return {all:fin(all),b:fin(b),e:fin(e)};
   }
+  function aggFundMO(mrIdx){
+    const c=COLS, z=()=>({area:0,people:0,prem:0,houses:new Set()}), m=new Map();
+    for(let i=0;i<N;i++){ const fv=c.fund[i]; if(fv===0||c.mr[i]!==mrIdx)continue;
+      const k=c.mo[i]; let g=m.get(k); if(!g){g={name:DIMS.mo[k],all:z(),b:z(),e:z()};m.set(k,g);}
+      const t=fv===1?g.b:g.e; [g.all,t].forEach(o=>{o.area+=c.area[i];o.people+=c.people[i];o.prem++;o.houses.add(c.house[i]);}); }
+    const fin=o=>({area:o.area,houses:o.houses.size,prem:o.prem,people:o.people});
+    return [...m.values()].map(g=>({name:g.name,all:fin(g.all),b:fin(g.b),e:fin(g.e)})).sort((a,b)=>b.all.area-a.all.area);
+  }
   function smsLine(label,a){ return `${label} - ${fmtAreaShort(a.area)}, ${fmt(a.houses)} домов, ${fmt(a.prem)} ж/п, ${fmt(a.people)} человек.`; }
   function smsBlock(g){ return smsLine('Всего в Госпрограмме',g.all)+'\n'+smsLine('Бюджет',g.b)+'\n'+smsLine('Внебюджет',g.e); }
+  function smsMuni(mi){
+    let s=smsBlock(aggFund(mi));
+    const ros=aggFundMO(mi);
+    if(ros.length){ s+='\n\nРайоны:'; ros.forEach(r=>{ s+=`\n\n${r.name}:\n`+smsBlock(r); }); }
+    return s;
+  }
   function buildSMS(){
     const sel=[...state.mrSet];
     if(sel.length===0) return smsBlock(aggFund(null));
     sel.sort((a,b)=>shortName(DIMS.mr[a]).localeCompare(shortName(DIMS.mr[b]),'ru'));
-    if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsBlock(aggFund(sel[0]));
-    return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsBlock(aggFund(mi))).join('\n\n');
+    if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsMuni(sel[0]);
+    return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsMuni(mi)).join('\n\n———\n\n');
   }
   async function copySMS(){
     const text=buildSMS();
@@ -874,9 +886,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     document.getElementById('sms-btn').onclick=copySMS;
     document.querySelectorAll('.ft').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x===b));state.fund=b.dataset.fund;state.page=0;renderAll();});
     document.querySelectorAll('#struct-seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#struct-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.struct=b.dataset.k;renderStruct(lastA);});
-    let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;state.page=0;renderReg();},150);};
-    document.getElementById('pg-prev').onclick=()=>{if(state.page>0){state.page--;renderReg();}};
-    document.getElementById('pg-next').onclick=()=>{if(state.page<window._pages-1){state.page++;renderReg();}};
+    let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;renderReg();},150);};
     document.querySelectorAll('#cmp-thr button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#cmp-thr button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cmp.thr=+b.dataset.t;state.cmp.page=0;document.getElementById('cmp-note').textContent='осталось расселить ≤ '+Math.round(state.cmp.thr*100)+'%';renderCompletion();});
     let ct;document.getElementById('cmp-search').oninput=e=>{clearTimeout(ct);ct=setTimeout(()=>{state.cmp.search=e.target.value;state.cmp.page=0;renderCmpTable();},150);};
     document.getElementById('cmp-prev').onclick=()=>{if(state.cmp.page>0){state.cmp.page--;renderCmpTable();}};
