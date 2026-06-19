@@ -105,6 +105,10 @@
   .scroll-y{max-height:540px; overflow-y:auto}
   .scroll-y thead th{position:sticky; top:0; z-index:2; background:var(--card)}
   /* Процесс расселения */
+  .proc-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; align-content:start}
+  .proc-grid .proc-row{margin-bottom:0}
+  .phead .proc-search-wrap{margin-bottom:0; width:min(280px,40vw)}
+  @media(max-width:640px){.proc-grid{grid-template-columns:1fr}}
   .proc-list{padding-right:4px}
   .proc-row{display:block; width:100%; text-align:left; background:var(--card); border:1px solid var(--line-2); border-radius:11px; padding:11px 13px; margin-bottom:8px; cursor:pointer; transition:all .15s; font-family:"Geologica"}
   .proc-row:hover{border-color:var(--blue); background:var(--paper-veil)}
@@ -239,6 +243,8 @@
   .ms-search:focus{border-color:var(--blue)}
   .ms-list{max-height:280px; overflow:auto; display:flex; flex-direction:column; gap:1px}
   .ms-opt{display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--ink-2)}
+  .ms-opt .ms-bn{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ms-opt .ms-bc{flex:none; margin-left:auto; color:var(--muted); font-size:12px}
   .ms-opt:hover{background:var(--paper-veil)}
   .ms-opt .box{width:16px; height:16px; border:1.5px solid var(--line); border-radius:4px; flex:none; display:flex; align-items:center; justify-content:center}
   .ms-opt.on .box{background:var(--blue); border-color:var(--blue)}
@@ -430,6 +436,16 @@
       </div>
     </div>
     <div class="fgroup" style="display:none"><label>Причина аварийности</label><select class="sel" id="f-reason"><option value="">Все причины</option></select></div>
+    <div class="fgroup"><label>Застройщик / поставщик</label>
+      <div class="ms" id="f-bld">
+        <button type="button" class="ms-btn" id="f-bld-btn"><span id="f-bld-label">Все застройщики</span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="ms-panel" id="f-bld-panel" hidden>
+          <input class="ms-search" id="f-bld-search" placeholder="Поиск застройщика…" autocomplete="off">
+          <div class="ms-list" id="f-bld-list"></div>
+          <div class="ms-foot"><span id="f-bld-cnt">Выбрано: 0</span><button type="button" id="f-bld-clear">Очистить</button></div>
+        </div>
+      </div>
+    </div>
     <div class="fgroup"><label>Год признания аварийным</label><div class="yr-range"><select class="sel" id="f-year-from"></select><span>—</span><select class="sel" id="f-year-to"></select></div></div>
     <div class="fgroup" style="display:none"><label>Состояние расселения</label><div class="chips" id="f-status"></div></div>
     <div class="filter-actions">
@@ -455,21 +471,14 @@
   </div>
 
   <!-- TIMELINE + STRUCTURE -->
-  <div class="sec-head"><span class="ix">03</span><h2>Хронология и&nbsp;структура фонда</h2><span class="rule"></span></div>
-  <div class="grid g2">
-    <section class="card panel">
-      <div class="phead"><div><h3>Признание домов аварийными</h3><div class="sub">Число домов, признанных аварийными, по годам</div></div></div>
-      <div class="area-host" id="year-area"></div>
-      <div class="ahint" id="year-hint"></div>
-    </section>
-    <section class="card panel">
-      <div class="phead">
-        <div><h3>Процесс расселения</h3><div class="sub">Только бюджет · готовность по домам · клик раскрывает дома и квартиры</div></div>
-      </div>
+  <div class="sec-head"><span class="ix">03</span><h2>Процесс расселения</h2><span class="rule"></span><span class="note">только бюджет · готовность по домам</span></div>
+  <section class="card panel">
+    <div class="phead">
+      <div><h3>Готовность по муниципалитетам</h3><div class="sub">Расселено ж/п (без пустующих) · клик раскрывает дома и квартиры</div></div>
       <div class="proc-search-wrap"><input id="proc-mr-search" placeholder="Поиск муниципалитета…" autocomplete="off"></div>
-      <div class="proc-list scroll-y" id="proc-list" style="max-height:300px"></div>
-    </section>
-  </div>
+    </div>
+    <div class="proc-list proc-grid scroll-y" id="proc-list" style="max-height:560px"></div>
+  </section>
 
   <!-- МУНИЦИПАЛИТЕТЫ -->
   <div class="sec-head"><span class="ix">04</span><h2>Муниципалитеты</h2><span class="rule"></span><span class="note">всего · бюджет · внебюджет · клик раскрывает районы</span></div>
@@ -626,7 +635,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   const ADM=/\s*(городск(ой|ое)\s+(округ|поселение)|муниципальн(ый|ое)\s+(округ|район)|сельское\s+поселение)\s*/gi;
   const shortName=s=>{if(s==null)return s;let r=String(s).replace(ADM,' ').replace(/\s+/g,' ').trim().replace(/^[-–—,]+|[-–—,]+$/g,'').trim();return r||String(s);};
 
-  const state={fund:'',mrSet:new Set(),reason:'',status:new Set(),yearFrom:0,yearTo:9999,reg:{mr:null},struct:'own',search:'',sort:{col:'area',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
+  const state={fund:'',mrSet:new Set(),bldSet:new Set(),reason:'',status:new Set(),yearFrom:0,yearTo:9999,reg:{mr:null},struct:'own',search:'',sort:{col:'area',dir:-1},page:0,cmp:{thr:0.3,search:'',sort:{col:'rem',dir:1},page:0}};
+  let BLDSTAT={};
   let YMIN=0,YMAX=9999,lastCmp=null;
 
   // ----- aggregation (single pass) -----
@@ -736,9 +746,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function addrShort(s){ return String(s).split(',').map(x=>x.trim()).filter(p=>!/^обл\.|^область|^московская|^р-н\.|^район/i.test(p)).join(', ')||s; }
   function procScan(mrFilter,collectPrem){
     const c=COLS, hm=new Map(), BL='Не указано';
+    let bhFilter=null;
+    if(state.bldSet.size){ bhFilter=new Set(); for(let i=0;i<N;i++) if(state.bldSet.has(c.builder[i])) bhFilter.add(c.house[i]); }
     for(let i=0;i<N;i++){
       const mr=c.mr[i]; if(mrFilter!=null&&mr!==mrFilter)continue;
-      const h=c.house[i]; let g=hm.get(h);
+      const h=c.house[i]; if(bhFilter&&!bhFilter.has(h))continue;
+      let g=hm.get(h);
       if(!g){g={house:h,mr,mo:c.mo[i],addr:DIMS.addr[h],denom:0,done:0,budget:false,methods:new Set(),prem:collectPrem?[]:null};hm.set(h,g);}
       if(c.fund[i]===1)g.budget=true;
       const resid=DIMS.ptype[c.ptype[i]]!==BL, vac=c.status[i]===VAC;
@@ -990,12 +1003,20 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     s+=smsContracts(mi);
     return s;
   }
+  function smsBuilders(){
+    const sel=[...state.bldSet]; if(!sel.length)return '';
+    sel.sort((a,b)=>((BLDSTAT[b]||{}).prem||0)-((BLDSTAT[a]||{}).prem||0));
+    let s='\n\n———\n\nЗастройщики / поставщики:';
+    sel.forEach(bi=>{const g=BLDSTAT[bi]; if(!g)return;
+      s+=`\n\n${DIMS.builder[bi]}:\n${fmt(g.prem)} помещений, ${fmtAreaShort(g.area)}, ${fmt(g.houses.size)} домов, ${fmt(g.mrs.size)} муниципалитетов.`;});
+    return s;
+  }
   function buildSMS(){
-    const sel=[...state.mrSet];
-    if(sel.length===0) return smsBlock(aggFund(null))+smsContracts(null);
+    const sel=[...state.mrSet], tail=smsBuilders();
+    if(sel.length===0) return smsBlock(aggFund(null))+smsContracts(null)+tail;
     sel.sort((a,b)=>shortName(DIMS.mr[a]).localeCompare(shortName(DIMS.mr[b]),'ru'));
-    if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsMuni(sel[0]);
-    return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsMuni(mi)).join('\n\n———\n\n');
+    if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsMuni(sel[0])+tail;
+    return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsMuni(mi)).join('\n\n———\n\n')+tail;
   }
   async function copySMS(){
     const text=buildSMS();
@@ -1004,7 +1025,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   let lastA=null;
-  function renderAll(){const A=pass();lastA=A;renderKPI(A);renderDonut(A);renderMRBars(A);renderProcess();renderYear(A);renderReg();}
+  function renderAll(){const A=pass();lastA=A;renderKPI(A);renderDonut(A);renderMRBars(A);renderProcess();renderReg();}
 
   function buildControls(){
     document.getElementById('period-line').textContent=D.meta.period;
@@ -1035,6 +1056,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     msPanel.onclick=e=>e.stopPropagation();
     document.getElementById('f-mr-clear').onclick=()=>{state.mrSet.clear(); msRender(); msLabel(); state.page=0; renderAll();};
     if(!window._msDocClose){window._msDocClose=true; document.addEventListener('click',()=>{document.querySelectorAll('.ms-panel').forEach(p=>p.hidden=true); document.querySelectorAll('.ms').forEach(m=>m.classList.remove('open'));});}
+    // --- статистика по застройщикам + multi-select ---
+    BLDSTAT={}; const _BL='Не указано';
+    for(let i=0;i<N;i++){const b=COLS.builder[i]; if(DIMS.builder[b]===_BL)continue; const g=BLDSTAT[b]||(BLDSTAT[b]={prem:0,area:0,houses:new Set(),mrs:new Set()}); g.prem++; g.area+=COLS.area[i]; g.houses.add(COLS.house[i]); g.mrs.add(COLS.mr[i]);}
+    const bldOrder=Object.keys(BLDSTAT).map(i=>({i:+i,n:DIMS.builder[+i],prem:BLDSTAT[i].prem})).sort((a,b)=>b.prem-a.prem);
+    const bsList=document.getElementById('f-bld-list');
+    function bsLabel(){const s=state.bldSet,el=document.getElementById('f-bld-label'); el.textContent=s.size===0?'Все застройщики':(s.size===1?DIMS.builder[[...s][0]]:'Выбрано застройщиков: '+s.size); document.getElementById('f-bld-cnt').textContent='Выбрано: '+s.size;}
+    function bsRender(){const q=(document.getElementById('f-bld-search').value||'').toLowerCase();
+      bsList.innerHTML=bldOrder.filter(o=>!q||o.n.toLowerCase().includes(q)).map(o=>`<div class="ms-opt ${state.bldSet.has(o.i)?'on':''}" data-i="${o.i}"><span class="box"></span><span class="ms-bn">${o.n}</span><span class="ms-bc num">${fmt(o.prem)}</span></div>`).join('')||'<div style="padding:10px;color:var(--muted);font-size:13px">Ничего не найдено</div>';
+      bsList.querySelectorAll('.ms-opt').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; state.bldSet.has(i)?state.bldSet.delete(i):state.bldSet.add(i); el.classList.toggle('on'); bsLabel(); renderProcess();});
+    }
+    bsRender(); bsLabel();
+    document.getElementById('f-bld-search').oninput=bsRender;
+    const bsBox=document.getElementById('f-bld'), bsBtn=document.getElementById('f-bld-btn'), bsPanel=document.getElementById('f-bld-panel');
+    bsBtn.onclick=(e)=>{e.stopPropagation(); const open=bsPanel.hidden; document.querySelectorAll('.ms-panel').forEach(p=>p.hidden=true); document.querySelectorAll('.ms').forEach(m=>m.classList.remove('open')); if(open){bsPanel.hidden=false; bsBox.classList.add('open'); document.getElementById('f-bld-search').focus();}};
+    bsPanel.onclick=e=>e.stopPropagation();
+    document.getElementById('f-bld-clear').onclick=()=>{state.bldSet.clear(); bsRender(); bsLabel(); renderProcess();};
     DIMS.reason.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;reSel.appendChild(o);});
     reSel.onchange=()=>{state.reason=reSel.value;state.page=0;renderAll();};
     const ysSet=new Set(); for(let i=0;i<N;i++){if(COLS.fund[i]>0&&COLS.year[i]>0)ysSet.add(COLS.year[i]);}
@@ -1046,7 +1083,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     yt.onchange=()=>{state.yearTo=+yt.value; if(state.yearTo<state.yearFrom){state.yearFrom=state.yearTo; yf.value=state.yearFrom;} state.page=0; renderAll();};
     const wrap=document.getElementById('f-status');
     SI.forEach((n,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{state.status.has(i)?state.status.delete(i):state.status.add(i);b.classList.toggle('on');state.page=0;renderAll();};wrap.appendChild(b);});
-    document.getElementById('reset').onclick=()=>{state.fund='';document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x.dataset.fund===''));state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;msRender();msLabel();reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
+    document.getElementById('reset').onclick=()=>{state.fund='';document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x.dataset.fund===''));state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.yearFrom=YMIN;state.yearTo=YMAX;state.cmp.search='';state.cmp.page=0;state.bldSet.clear();msRender();msLabel();bsRender();bsLabel();reSel.value='';yf.value=YMIN;yt.value=YMAX;document.getElementById('tbl-search').value='';document.getElementById('cmp-search').value='';document.querySelectorAll('#f-status .chip').forEach(c=>c.classList.remove('on'));renderAll();};
     document.getElementById('sms-btn').onclick=copySMS;
     document.querySelectorAll('.ft').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ft').forEach(x=>x.classList.toggle('active',x===b));state.fund=b.dataset.fund;state.page=0;renderAll();});
     let st;document.getElementById('tbl-search').oninput=e=>{clearTimeout(st);st=setTimeout(()=>{state.search=e.target.value;renderReg();},150);};
@@ -1060,7 +1097,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function applyData(ds){
     D=ds; COLS=ds.cols; DIMS=ds.dims; N=ds.meta.rows;
     SI=DIMS.status; DONE=idx(SI,'Расселено'); TOR=idx(SI,'Подлежит расселению'); VAC=idx(SI,'Пустующие');
-    state.fund='';state.mrSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.cmp.search='';state.cmp.page=0;
+    state.fund='';state.mrSet.clear();state.bldSet.clear();state.reason='';state.status.clear();state.search='';state.reg.mr=null;state.page=0;state.cmp.search='';state.cmp.page=0;
     const ts=document.getElementById('tbl-search'); if(ts)ts.value='';
     const cs=document.getElementById('cmp-search'); if(cs)cs.value='';
     const ul=document.getElementById('updated-line'); if(ul)ul.innerHTML=ds.meta.updated?('Обновлено: <b>'+ds.meta.updated+'</b>'):'';
