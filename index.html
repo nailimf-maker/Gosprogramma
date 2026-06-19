@@ -193,9 +193,9 @@
   .hero-pattern svg{position:absolute; left:0; top:0; width:100%; height:auto; display:block}
   .hero-ring{position:relative; width:204px; height:204px; margin:8px auto 0}
   .hero-ring > svg{width:100%; height:100%; display:block; transform:rotate(-90deg)}
-  .hero-ring .center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center}
-  .hero-ring .center .pct{font:600 42px/1 "Geologica"; color:#fff; letter-spacing:-1px}
-  .hero-ring .center .pl{font-size:11px; letter-spacing:2.6px; text-transform:uppercase; color:var(--blue-2); margin-top:6px}
+  .hero-ring .center{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center}
+  .hero-ring .center .pct{font:600 42px/1 "Geologica"; color:#fff; letter-spacing:-.5px; font-variant-numeric:tabular-nums}
+  .hero-ring .center .pl{position:absolute; left:0; right:0; top:calc(50% + 25px); font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--blue-2)}
   .hero-card-foot{text-align:center; color:rgba(255,255,255,.72); font-size:12.5px; padding:10px 20px 24px}
   .hero-card-foot b{color:#fff; font-weight:600}
 
@@ -273,17 +273,18 @@
   .seg button{background:none; border:0; color:var(--muted); font:600 11.5px/1 "Geologica"; padding:7px 11px; border-radius:6px; cursor:pointer; transition:all .18s; white-space:nowrap}
   .seg button.on{background:var(--card); color:var(--navy); box-shadow:0 1px 2px rgba(0,0,0,.06)}
 
-  .donut-row{display:flex; gap:26px; align-items:center; flex-wrap:wrap}
-  .donut-svg{width:196px; height:196px; flex:0 0 auto; position:relative}
-  .donut-svg .dc{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center}
-  .donut-svg .dc b{font:500 28px/1 "Geologica"; color:var(--ink)}
-  .donut-svg .dc span{font-size:10.5px; color:var(--muted); margin-top:4px; letter-spacing:1px; text-transform:uppercase}
-  .legend{flex:1; min-width:210px; display:flex; flex-direction:column}
+  .donut-row{display:flex; gap:24px; align-items:center; flex-wrap:nowrap}
+  .donut-svg{width:176px; height:176px; flex:0 0 auto; position:relative}
+  .donut-svg .dc{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center}
+  .donut-svg .dc b{font:500 27px/1 "Geologica"; color:var(--ink); font-variant-numeric:tabular-nums}
+  .donut-svg .dc span{position:absolute; left:0; right:0; top:calc(50% + 17px); font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase}
+  .legend{flex:1; min-width:0; display:flex; flex-direction:column}
+  @media(max-width:560px){.donut-row{flex-wrap:wrap} .donut-svg{margin:0 auto}}
   .lrow{display:flex; align-items:center; gap:12px; font-size:13px; padding:9px 0; border-bottom:1px solid var(--line-2)}
   .lrow:last-child{border-bottom:0}
   .lrow .sw{width:9px; height:9px; border-radius:2px; flex:0 0 auto}
-  .lrow .ln{flex:1; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .lrow .lv{font:600 13.5px/1 "Geologica"; color:var(--ink)}
+  .lrow .ln{flex:1 0 auto; color:var(--ink-2); white-space:nowrap; margin-right:6px}
+  .lrow .lv{font:600 13.5px/1 "Geologica"; color:var(--ink); white-space:nowrap}
   .lrow .lp{font-size:11.5px; color:var(--muted); width:48px; text-align:right}
 
   .bars{display:flex; flex-direction:column; gap:15px}
@@ -466,13 +467,13 @@
     <section class="card panel">
       <div class="phead"><div><h3>Источник финансирования</h3><div class="sub">Площадь остатка по источникам</div></div></div>
       <div class="donut-row">
-        <div class="donut-svg"><svg viewBox="0 0 120 120" id="donut"></svg><div class="dc"><b class="num" id="donut-total">—</b><span>м²</span></div></div>
+        <div class="donut-svg"><svg viewBox="0 0 120 120" id="donut"></svg><div class="dc"><b class="num" id="donut-total">—</b><span id="donut-unit">м²</span></div></div>
         <div class="legend" id="status-legend"></div>
       </div>
     </section>
     <section class="card panel collapsible" id="panel-top">
-      <div class="phead phead-toggle"><div><h3>Топ муниципалитетов</h3><div class="sub">По площади остатка, м² · топ-12 · нажмите, чтобы открыть</div></div><svg class="coll-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
-      <div class="panel-body"><div class="bars" id="mr-bars"></div></div>
+      <div class="phead phead-toggle"><div><h3>Топ муниципалитетов</h3><div class="sub">По площади остатка, м² · топ-10, прокрутка всех · нажмите, чтобы открыть</div></div><svg class="coll-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+      <div class="panel-body"><div class="bars scroll-y" id="mr-bars" style="max-height:430px"></div></div>
     </section>
   </div>
 
@@ -705,16 +706,19 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function setT(el,v,suf){ if(suf||el.querySelector('small')){const sm=el.querySelector('small');el.textContent=v;if(sm)el.appendChild(sm);} else el.textContent=v; }
 
   const aNum=a=> a>=1e6? nf1.format(a/1e6)+' млн' : (a>=1e3? nf1.format(a/1e3)+' тыс' : fmtA(a));
+  const aParts=a=> a>=1e6?{n:nf1.format(a/1e6),u:'млн м²'}:(a>=1e3?{n:nf1.format(a/1e3),u:'тыс м²'}:{n:fmtA(a),u:'м²'});
   function renderKPI(A){
     const map={rooms:A.n,houses:A.houses.size,people:A.people,area:A.area,mr:A.mrSet.size,areaB:A.areaBudget,areaE:A.areaExtra};
     document.querySelectorAll('[data-kpi]').forEach(el=>{const k=el.dataset.kpi; if(map[k]===undefined)return; animNum(el,map[k],'',(k==='area'||k==='areaB'||k==='areaE')?fmtA:fmt);});
     drawFundRing(A.areaBudget,A.areaExtra);
-    document.getElementById('seal-pct').textContent=aNum(A.area);
-    document.getElementById('seal-label').textContent= state.fund==='b'?'м² · бюджет':state.fund==='e'?'м² · внебюджет':'м² · общая площадь';
+    const ap=aParts(A.area), ctx=state.fund==='b'?'бюджет':state.fund==='e'?'внебюджет':'всего';
+    document.getElementById('seal-pct').textContent=ap.n;
+    document.getElementById('seal-label').textContent=ap.u+' · '+ctx;
     document.getElementById('seal-foot').innerHTML= state.fund===''
       ? `Бюджет <b>${aNum(A.areaBudget)}</b> · Внебюджет <b>${aNum(A.areaExtra)}</b>`
       : `${fmt(A.n)} ж/п · ${fmt(A.houses.size)} домов`;
-    document.getElementById('donut-total').textContent=aNum(A.area);
+    document.getElementById('donut-total').textContent=ap.n;
+    const du=document.getElementById('donut-unit'); if(du)du.textContent=ap.u;
   }
 
   // ----- progress ring + brand house pattern -----
@@ -759,9 +763,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   // ----- top MR bars -----
   function renderMRBars(A){
-    const rows=Object.entries(A.mr).map(([k,g])=>({name:DIMS.mr[k],v:g.area})).sort((a,b)=>b.v-a.v).slice(0,12);
+    const rows=Object.entries(A.mr).map(([k,g])=>({name:DIMS.mr[k],v:g.area})).sort((a,b)=>b.v-a.v);
     const max=Math.max(...rows.map(r=>r.v),1);
-    document.getElementById('mr-bars').innerHTML=rows.map((r,i)=>`<div class="bar"><span class="bn" title="${r.name}">${shortName(r.name)}</span><span class="bv num">${aNum(r.v)} м²</span><div class="track"><div class="fill" data-w="${(r.v/max*100).toFixed(1)}" style="background:linear-gradient(90deg,${C_NAVY},${C_BLUE});transition-delay:${i*40}ms"></div></div></div>`).join('');
+    document.getElementById('mr-bars').innerHTML=rows.map((r,i)=>`<div class="bar"><span class="bn" title="${r.name}">${shortName(r.name)}</span><span class="bv num">${aNum(r.v)} м²</span><div class="track"><div class="fill" data-w="${(r.v/max*100).toFixed(1)}" style="background:linear-gradient(90deg,${C_NAVY},${C_BLUE});transition-delay:${Math.min(i,12)*40}ms"></div></div></div>`).join('');
     requestAnimationFrame(()=>document.querySelectorAll('#mr-bars .fill').forEach(f=>f.style.width=f.dataset.w+'%'));
   }
 
