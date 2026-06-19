@@ -132,6 +132,17 @@
   .pr-n{font:600 12.5px/1 "Geologica"; color:var(--navy)} .pr-s{color:var(--ink-2)} .pr-a{color:var(--muted); font-size:11px}
   .pr-m{display:block; color:var(--muted); font-size:10.5px; line-height:1.35; margin-top:1px}
   .ph-meth{padding:0 14px 11px; margin-top:-5px; font-size:11.5px; color:var(--muted)} .ph-meth b{color:var(--ink-2); font-weight:600}
+  .proc-search-wrap{margin-bottom:9px}
+  .proc-search-wrap input{width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:9px; font:400 13px "Geologica"; background:var(--paper-veil); color:var(--ink); outline:none}
+  .proc-search-wrap input:focus{border-color:var(--blue); background:var(--card)}
+  .modal-search{display:flex; align-items:center; gap:8px; margin:0 24px 12px; padding:9px 13px; border:1px solid var(--line); border-radius:10px; background:var(--paper-veil)}
+  .modal-search svg{width:16px; height:16px; stroke:var(--muted); flex:none} .modal-search input{flex:1; border:0; background:none; outline:none; font:400 13.5px "Geologica"; color:var(--ink)}
+  .proc-contracts{margin:0 24px 14px; padding:13px 15px; background:#F2F8FE; border:1px solid #D6E7F8; border-radius:12px}
+  .proc-contracts[hidden]{display:none}
+  .pc-title{font:600 13px "Geologica"; color:var(--navy); margin-bottom:7px} .pc-title b{color:var(--blue)}
+  .pc-row{display:flex; gap:10px; font-size:12px; margin-top:5px; line-height:1.5}
+  .pc-l{flex:none; width:84px; color:var(--muted); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:.04em; padding-top:2px}
+  .pc-v{color:var(--ink-2)} .pc-v b{color:var(--navy)}
   @media(max-width:620px){ .updated{font-size:11px} }
   .bld-pipeline{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
   @media(max-width:980px){ .bld-pipeline{grid-template-columns:repeat(3,1fr)} }
@@ -455,6 +466,7 @@
       <div class="phead">
         <div><h3>Процесс расселения</h3><div class="sub">Только бюджет · готовность по домам · клик раскрывает дома и квартиры</div></div>
       </div>
+      <div class="proc-search-wrap"><input id="proc-mr-search" placeholder="Поиск муниципалитета…" autocomplete="off"></div>
       <div class="proc-list scroll-y" id="proc-list" style="max-height:300px"></div>
     </section>
   </div>
@@ -546,6 +558,8 @@
       <button class="modal-x" id="proc-close" aria-label="Закрыть">&times;</button>
     </div>
     <div class="modal-summary" id="proc-summary"></div>
+    <div class="proc-contracts" id="proc-contracts" hidden></div>
+    <div class="modal-search"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input id="proc-search" placeholder="Поиск по адресу дома…" autocomplete="off"></div>
     <div class="modal-body"><div id="proc-houses"></div></div>
   </div>
 </div>
@@ -756,9 +770,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     arr.sort((a,b)=>a.rem-b.rem); // меньший остаток (почти завершённые, ≤30%) — первыми
     return arr;
   }
+  function contractSummary(houses){
+    let nContract=0; const meth={},bld={};
+    houses.forEach(h=>h.prem.forEach(p=>{
+      if(p.oblig)nContract++;
+      if(p.method)meth[p.method]=(meth[p.method]||0)+1;
+      if(p.builder)bld[p.builder]=(bld[p.builder]||0)+1;
+    }));
+    const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+    return {nContract,meth:top(meth),bld:top(bld)};
+  }
+  let procMrQ='', _procHouses=[], procHouseQ='';
   function renderProcess(){
-    const rows=procByMR(), host=document.getElementById('proc-list');
-    if(!rows.length){host.innerHTML='<div style="padding:22px;text-align:center;color:var(--muted)">Нет бюджетных домов</div>';return;}
+    let rows=procByMR();
+    const q=procMrQ.trim().toLowerCase(); if(q)rows=rows.filter(r=>shortName(r.name).toLowerCase().includes(q)||r.name.toLowerCase().includes(q));
+    const host=document.getElementById('proc-list');
+    if(!rows.length){host.innerHTML='<div style="padding:22px;text-align:center;color:var(--muted)">'+(q?'Ничего не найдено':'Нет бюджетных домов')+'</div>';return;}
     host.innerHTML=rows.map(r=>`<button class="proc-row" data-mr="${r.mr}">
       <div class="proc-top"><span class="proc-name">${shortName(r.name)}</span><span class="proc-pct num">${fmtP(r.progress)}</span></div>
       <div class="proc-bar"><span style="width:${r.progress.toFixed(1)}%"></span></div>
@@ -767,7 +794,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     host.querySelectorAll('.proc-row').forEach(b=>b.onclick=()=>openProc(+b.dataset.mr));
   }
   function openProc(mrIdx){
-    const houses=procHouses(mrIdx);
+    const houses=procHouses(mrIdx); _procHouses=houses; procHouseQ='';
     const tot=houses.reduce((o,h)=>{o.denom+=h.denom;o.done+=h.done;return o;},{denom:0,done:0});
     const near=houses.filter(h=>h.rem<=30).length;
     document.getElementById('proc-title').textContent=shortName(DIMS.mr[mrIdx]);
@@ -776,6 +803,21 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       ['Расселено ж/п',fmt(tot.done)+' из '+fmt(tot.denom)],
       ['Домов',fmt(houses.length)],['Остаток ≤30%',fmt(near)+' домов']
     ].map(([l,v])=>`<div class="ms-stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+    // плашка по контрактам / способам / застройщикам
+    const cs=contractSummary(houses), pc=document.getElementById('proc-contracts');
+    if(cs.meth.length||cs.bld.length){
+      pc.hidden=false;
+      pc.innerHTML=`<div class="pc-title">По контрактам · <b>${fmt(cs.nContract)}</b> помещений</div>`
+        +(cs.meth.length?`<div class="pc-row"><span class="pc-l">Способы</span><span class="pc-v">${cs.meth.map(([k,v])=>`${k} — <b>${fmt(v)}</b>`).join(' · ')}</span></div>`:'')
+        +(cs.bld.length?`<div class="pc-row"><span class="pc-l">Застройщики</span><span class="pc-v">${cs.bld.slice(0,10).map(([k,v])=>`${k} — <b>${fmt(v)}</b>`).join(' · ')}</span></div>`:'');
+    } else pc.hidden=true;
+    const si=document.getElementById('proc-search'); if(si)si.value='';
+    renderProcHouses();
+    document.getElementById('proc-modal').hidden=false;
+  }
+  function renderProcHouses(){
+    const q=procHouseQ.trim().toLowerCase();
+    let houses=_procHouses; if(q)houses=houses.filter(h=>h.addr.toLowerCase().includes(q));
     document.getElementById('proc-houses').innerHTML=houses.map((h,i)=>{
       const hot=h.rem<=30;
       const prem=h.prem.map(p=>{
@@ -796,9 +838,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         ${methLine}
         <div class="ph-prem" hidden>${prem}</div>
       </div>`;
-    }).join('')||'<div style="padding:20px;text-align:center;color:var(--muted)">Нет домов</div>';
+    }).join('')||`<div style="padding:20px;text-align:center;color:var(--muted)">${q?'Дома не найдены':'Нет домов'}</div>`;
     document.querySelectorAll('#proc-houses .ph-head').forEach(b=>b.onclick=()=>{const pr=b.parentElement.querySelector('.ph-prem');pr.hidden=!pr.hidden;b.classList.toggle('open',!pr.hidden);});
-    document.getElementById('proc-modal').hidden=false;
   }
 
   // ----- area chart -----
@@ -933,15 +974,25 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function smsLine(label,a){ return `${label} - ${fmtAreaShort(a.area)}, ${fmt(a.houses)} домов, ${fmt(a.prem)} ж/п, ${fmt(a.people)} человек.`; }
   function smsBlock(g){ return smsLine('Всего в Госпрограмме',g.all)+'\n'+smsLine('Бюджет',g.b)+'\n'+smsLine('Внебюджет',g.e); }
   function smsBlockBE(g){ return smsLine('Бюджет',g.b)+'\n'+smsLine('Внебюджет',g.e); }
+  function smsContracts(mi){
+    const cs=contractSummary(procHouses(mi));
+    if(!cs.meth.length&&!cs.bld.length)return '';
+    let s='\n\nПо контрактам (бюджет):';
+    if(cs.nContract)s+=`\nПомещений по контрактам: ${fmt(cs.nContract)}.`;
+    if(cs.meth.length)s+='\nСпособы: '+cs.meth.slice(0,6).map(([k,v])=>`${k} (${fmt(v)})`).join(', ')+'.';
+    if(cs.bld.length)s+='\nЗастройщики: '+cs.bld.slice(0,6).map(([k,v])=>`${k} (${fmt(v)})`).join(', ')+'.';
+    return s;
+  }
   function smsMuni(mi){
     let s=smsBlock(aggFund(mi));
     const ros=aggFundMO(mi);
     if(ros.length){ s+='\n\nРайоны:'; ros.forEach(r=>{ s+=`\n\n${r.name}:\n`+smsBlockBE(r); }); }
+    s+=smsContracts(mi);
     return s;
   }
   function buildSMS(){
     const sel=[...state.mrSet];
-    if(sel.length===0) return smsBlock(aggFund(null));
+    if(sel.length===0) return smsBlock(aggFund(null))+smsContracts(null);
     sel.sort((a,b)=>shortName(DIMS.mr[a]).localeCompare(shortName(DIMS.mr[b]),'ru'));
     if(sel.length===1) return `АЖФ в ${loc(shortName(DIMS.mr[sel[0]]))}:\n`+smsMuni(sel[0]);
     return sel.map((mi,k)=>`${k+1}. АЖФ в ${loc(shortName(DIMS.mr[mi]))}:\n`+smsMuni(mi)).join('\n\n———\n\n');
@@ -1192,6 +1243,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       document.getElementById('proc-close').onclick=()=>pm.hidden=true;
       pm.onclick=e=>{if(e.target===pm)pm.hidden=true;};
     }
+    const pms=document.getElementById('proc-mr-search'); if(pms)pms.oninput=e=>{procMrQ=e.target.value;renderProcess();};
+    const psr=document.getElementById('proc-search'); if(psr)psr.oninput=e=>{procHouseQ=e.target.value;renderProcHouses();};
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(mm)mm.hidden=true;if(pm)pm.hidden=true;}});
   }
 
