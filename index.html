@@ -105,6 +105,11 @@
   .scroll-y{max-height:540px; overflow-y:auto}
   .scroll-y thead th{position:sticky; top:0; z-index:2; background:var(--card)}
   /* Процесс расселения */
+  .phead-toggle{cursor:pointer; user-select:none}
+  .collapsible .coll-ar{width:20px; height:20px; stroke:var(--muted); flex:none; margin-left:14px; transition:transform .2s}
+  .collapsible.open .coll-ar{transform:rotate(180deg)}
+  .collapsible:not(.open) .panel-body{display:none}
+  .phead-toggle:hover h3{color:var(--blue)}
   .proc-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; align-content:start}
   .proc-grid .proc-row{margin-bottom:0}
   .phead .proc-search-wrap{margin-bottom:0; width:min(280px,40vw)}
@@ -147,6 +152,7 @@
   .pc-row{display:flex; gap:10px; font-size:12px; margin-top:5px; line-height:1.5}
   .pc-l{flex:none; width:84px; color:var(--muted); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:.04em; padding-top:2px}
   .pc-v{color:var(--ink-2)} .pc-v b{color:var(--navy)}
+  .bld-sub{font:600 11px "Geologica"; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:9px}
   @media(max-width:620px){ .updated{font-size:11px} }
   .bld-pipeline{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
   @media(max-width:980px){ .bld-pipeline{grid-template-columns:repeat(3,1fr)} }
@@ -464,20 +470,23 @@
         <div class="legend" id="status-legend"></div>
       </div>
     </section>
-    <section class="card panel">
-      <div class="phead"><div><h3>Топ муниципалитетов</h3><div class="sub">По площади остатка, м² · топ-12</div></div></div>
-      <div class="bars" id="mr-bars"></div>
+    <section class="card panel collapsible" id="panel-top">
+      <div class="phead phead-toggle"><div><h3>Топ муниципалитетов</h3><div class="sub">По площади остатка, м² · топ-12 · нажмите, чтобы открыть</div></div><svg class="coll-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+      <div class="panel-body"><div class="bars" id="mr-bars"></div></div>
     </section>
   </div>
 
-  <!-- TIMELINE + STRUCTURE -->
+  <!-- ПРОЦЕСС РАССЕЛЕНИЯ -->
   <div class="sec-head"><span class="ix">03</span><h2>Процесс расселения</h2><span class="rule"></span><span class="note">только бюджет · готовность по домам</span></div>
-  <section class="card panel">
-    <div class="phead">
-      <div><h3>Готовность по муниципалитетам</h3><div class="sub">Расселено ж/п (без пустующих) · клик раскрывает дома и квартиры</div></div>
-      <div class="proc-search-wrap"><input id="proc-mr-search" placeholder="Поиск муниципалитета…" autocomplete="off"></div>
+  <section class="card panel collapsible" id="panel-proc">
+    <div class="phead phead-toggle">
+      <div><h3>Готовность по муниципалитетам</h3><div class="sub" id="proc-sub">нажмите, чтобы открыть</div></div>
+      <svg class="coll-ar" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
     </div>
-    <div class="proc-list proc-grid scroll-y" id="proc-list" style="max-height:560px"></div>
+    <div class="panel-body">
+      <div class="proc-search-wrap"><input id="proc-mr-search" placeholder="Поиск муниципалитета…" autocomplete="off"></div>
+      <div class="proc-list proc-grid scroll-y" id="proc-list" style="max-height:560px"></div>
+    </div>
   </section>
 
   <!-- МУНИЦИПАЛИТЕТЫ -->
@@ -559,6 +568,21 @@
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<div id="bld-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bld-title">
+    <div class="modal-head">
+      <div><div class="modal-eyebrow">Застройщик / поставщик</div><h3 id="bld-title">—</h3></div>
+      <button class="modal-x" id="bld-close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="modal-summary" id="bld-summary"></div>
+    <div class="proc-contracts" id="bld-contracts"></div>
+    <div class="modal-body">
+      <div class="bld-sub">Муниципалитеты</div>
+      <table class="modal-tbl"><thead><tr><th>Муниципалитет</th><th class="num">Площадь, м²</th><th class="num">Домов</th><th class="num">Помещений</th></tr></thead><tbody id="bld-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
 
 <div id="proc-modal" class="modal-overlay" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="proc-title">
@@ -793,9 +817,32 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
     return {nContract,meth:top(meth),bld:top(bld)};
   }
+  function openBuilder(bi){
+    const c=COLS, mrMap=new Map(), obl={}, meth={}, BL='Не указано'; let prem=0,area=0; const houses=new Set();
+    for(let i=0;i<N;i++){ if(c.builder[i]!==bi)continue; prem++; area+=c.area[i]; houses.add(c.house[i]);
+      const o=DIMS.oblig[c.oblig[i]], m=DIMS.method[c.method[i]];
+      if(o&&o!==BL)obl[o]=(obl[o]||0)+1; if(m&&m!==BL)meth[m]=(meth[m]||0)+1;
+      let g=mrMap.get(c.mr[i]); if(!g){g={name:DIMS.mr[c.mr[i]],prem:0,area:0,houses:new Set()};mrMap.set(c.mr[i],g);} g.prem++; g.area+=c.area[i]; g.houses.add(c.house[i]); }
+    const nContract=Object.values(obl).reduce((a,b)=>a+b,0), top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+    document.getElementById('bld-title').textContent=DIMS.builder[bi];
+    document.getElementById('bld-summary').innerHTML=[
+      ['Помещений',fmt(prem)],['Площадь',fmtA(area)+' м²'],['Домов',fmt(houses.size)],
+      ['Муниципалитетов',fmt(mrMap.size)],['Контрактов',fmt(nContract)]
+    ].map(([l,v])=>`<div class="ms-stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+    const oblTop=top(obl), methTop=top(meth);
+    document.getElementById('bld-contracts').innerHTML=`<div class="pc-title">Контракты · <b>${fmt(nContract)}</b> помещений</div>`
+      +(oblTop.length?`<div class="pc-row"><span class="pc-l">Какие</span><span class="pc-v">${oblTop.map(([k,v])=>`${k} — <b>${fmt(v)}</b>`).join(' · ')}</span></div>`:'')
+      +(methTop.length?`<div class="pc-row"><span class="pc-l">Способы</span><span class="pc-v">${methTop.map(([k,v])=>`${k} — <b>${fmt(v)}</b>`).join(' · ')}</span></div>`:'');
+    const rows=[...mrMap.values()].sort((a,b)=>b.area-a.area);
+    document.getElementById('bld-tbody').innerHTML=rows.map(g=>`<tr><td title="${g.name}">${shortName(g.name)}</td><td>${fmtA(g.area)}</td><td>${fmt(g.houses.size)}</td><td>${fmt(g.prem)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">Нет данных</td></tr>';
+    document.getElementById('bld-modal').hidden=false;
+  }
   let procMrQ='', _procHouses=[], procHouseQ='';
   function renderProcess(){
     let rows=procByMR();
+    const totD=rows.reduce((a,r)=>a+r.denom,0), totDone=rows.reduce((a,r)=>a+r.done,0);
+    const subEl=document.getElementById('proc-sub');
+    if(subEl)subEl.textContent=`${fmt(rows.length)} муниципалитетов · общая готовность ${fmtP(totD?totDone/totD*100:0)}`;
     const q=procMrQ.trim().toLowerCase(); if(q)rows=rows.filter(r=>shortName(r.name).toLowerCase().includes(q)||r.name.toLowerCase().includes(q));
     const host=document.getElementById('proc-list');
     if(!rows.length){host.innerHTML='<div style="padding:22px;text-align:center;color:var(--muted)">'+(q?'Ничего не найдено':'Нет бюджетных домов')+'</div>';return;}
@@ -1064,7 +1111,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     function bsLabel(){const s=state.bldSet,el=document.getElementById('f-bld-label'); el.textContent=s.size===0?'Все застройщики':(s.size===1?DIMS.builder[[...s][0]]:'Выбрано застройщиков: '+s.size); document.getElementById('f-bld-cnt').textContent='Выбрано: '+s.size;}
     function bsRender(){const q=(document.getElementById('f-bld-search').value||'').toLowerCase();
       bsList.innerHTML=bldOrder.filter(o=>!q||o.n.toLowerCase().includes(q)).map(o=>`<div class="ms-opt ${state.bldSet.has(o.i)?'on':''}" data-i="${o.i}"><span class="box"></span><span class="ms-bn">${o.n}</span><span class="ms-bc num">${fmt(o.prem)}</span></div>`).join('')||'<div style="padding:10px;color:var(--muted);font-size:13px">Ничего не найдено</div>';
-      bsList.querySelectorAll('.ms-opt').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; state.bldSet.has(i)?state.bldSet.delete(i):state.bldSet.add(i); el.classList.toggle('on'); bsLabel(); renderProcess();});
+      bsList.querySelectorAll('.ms-opt').forEach(el=>el.onclick=()=>{const i=+el.dataset.i; const adding=!state.bldSet.has(i); adding?state.bldSet.add(i):state.bldSet.delete(i); el.classList.toggle('on'); bsLabel(); renderProcess(); if(adding)openBuilder(i);});
     }
     bsRender(); bsLabel();
     document.getElementById('f-bld-search').oninput=bsRender;
@@ -1282,6 +1329,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     }
     const pms=document.getElementById('proc-mr-search'); if(pms)pms.oninput=e=>{procMrQ=e.target.value;renderProcess();};
     const psr=document.getElementById('proc-search'); if(psr)psr.oninput=e=>{procHouseQ=e.target.value;renderProcHouses();};
+    document.querySelectorAll('.phead-toggle').forEach(h=>h.onclick=()=>h.closest('.collapsible').classList.toggle('open'));
+    const bm=document.getElementById('bld-modal');
+    if(bm){
+      document.getElementById('bld-close').onclick=()=>bm.hidden=true;
+      bm.onclick=e=>{if(e.target===bm)bm.hidden=true;};
+      document.addEventListener('keydown',e=>{if(e.key==='Escape')bm.hidden=true;});
+    }
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(mm)mm.hidden=true;if(pm)pm.hidden=true;}});
   }
 
